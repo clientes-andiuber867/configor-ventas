@@ -1,0 +1,15 @@
+{
+  "before": {
+    "chunks": 12,
+    "jsBytes": 1329718,
+    "gzipBytes": 418523,
+    "dependencies": 25
+  },
+  "after": {
+    "chunks": 26,
+    "jsBytes": 863469,
+    "gzipBytes": 273337,
+    "dependencies": 12
+  },
+  "reductionPercent": 35
+}

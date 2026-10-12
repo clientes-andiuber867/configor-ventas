@@ -1,2 +1,4 @@
-import Workspace from './workspace';
-export default function Home(){return <Workspace/>}
+import LocalEntry from "@/features/auth/login";
+export default function Home() {
+  return <LocalEntry />;
+}
