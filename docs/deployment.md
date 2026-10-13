@@ -31,6 +31,10 @@ Cloudflare requiere adaptar y verificar Next.js mediante un adaptador compatible
 
 ## Operación
 
-Supabase es el origen activo. Un fallo de red no se muestra como cobro guardado. Reintentar conserva el UUID para evitar duplicar una venta cuya respuesta se perdió. El QR no confirma automáticamente el pago bancario.
+Supabase es el origen activo. Un fallo de red no se muestra como cobro guardado. Reintentar conserva el UUID para evitar duplicar una venta cuya respuesta se perdió. El QR consulta al banco y exige confirmación bancaria para registrar la venta. Antes de publicar esta versión aplica las migraciones 004, 005 y 006 y configura las variables BANECO_*; consulta payments.md.
 
 El adaptador local se conserva para pruebas y recuperación controlada. El respaldo anterior no incluye nuevas ventas de Supabase y no es un reemplazo automático.
+
+## Variables de la pasarela
+
+En Production configurar `BANECO_BASE_URL`, `BANECO_AES_KEY`, `BANECO_USER`, `BANECO_PASSWORD` y `BANECO_ACCOUNT` usando los valores privados de `.env.local`. No subir ese archivo al repositorio. Los endpoints de cobro y ventas declaran 60 segundos de duración máxima para las consultas bancarias. Los pagos y consecutivos persisten en Supabase, no en el disco efímero de Vercel.

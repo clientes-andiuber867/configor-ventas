@@ -19,7 +19,12 @@ export type Data = {
   products: Product[];
   sales: Sale[];
   members: Member[];
-  payments: { recipient: string; hasQr: boolean; qrVersion?: string };
+  payments: {
+    recipient: string;
+    hasQr: boolean;
+    qrVersion?: string;
+    gatewayReady?: boolean;
+  };
   rule: BarcodeRule;
 };
 export async function api(body?: any, query = "") {
@@ -67,6 +72,37 @@ export function useApp() {
     [reason, setReason] = useState(""),
     [testCode, setTestCode] = useState(""),
     [testResult, setTestResult] = useState("");
+  const [payment, setPayment] = useState<{
+    reference: string;
+    saleReference?: string;
+    qrImage?: string;
+    paid?: boolean;
+    cancelled?: boolean;
+    state?: string;
+    dueDate?: string;
+  } | null>(null);
+  const [paymentError, setPaymentError] = useState("");
+  const [qrLocked, setQrLocked] = useState(false);
+  const [qrLoading, setQrLoading] = useState(false);
+  const paymentRequest = useRef(false);
+  const paymentEpoch = useRef(0);
+  const cancelRequest = useRef(false);
+  useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem("configor-pending-payment");
+      if (saved) {
+        const d = JSON.parse(saved);
+        setCart(d.cart);
+        setSaleId(d.saleId);
+        setMethod(d.method);
+        setCashInput(d.cashInput);
+        setQrLocked(true);
+        setPayOpen(true);
+      }
+    } catch {
+      /* A malformed local draft must not prevent login. */
+    }
+  }, []);
   const scanRef = useRef<HTMLInputElement>(null);
   const scanBuffer = useRef("");
   const locked = useRef(false);
@@ -173,7 +209,8 @@ export function useApp() {
       addBarcode(raw);
   }
   function addBarcode(raw = scanBuffer.current) {
-    if (!data || !raw.trim() || manual || payOpen || selected) return;
+    if (!data || !raw.trim() || manual || payOpen || selected || qrLocked)
+      return;
     try {
       const d = decodeBarcode(raw, data.products, data.rule);
       setLastScan(new Date().toLocaleTimeString("es-BO"));
@@ -236,6 +273,177 @@ export function useApp() {
     method === "qr" ? total : method === "mixed" ? total - cashCents : 0;
   const cashApplied =
     method === "cash" ? total : method === "mixed" ? cashCents : 0;
+  async function generatePayment() {
+    if (
+      !data?.payments.gatewayReady ||
+      paymentRequest.current ||
+      !saleId ||
+      qrCents <= 0 ||
+      method === "cash"
+    )
+      return;
+    if (method === "mixed" && (cashCents <= 0 || cashCents >= total)) return;
+    paymentRequest.current = true;
+    setQrLoading(true);
+    setPaymentError("");
+    setQrLocked(true);
+    try {
+      sessionStorage.setItem(
+        "configor-pending-payment",
+        JSON.stringify({ cart, saleId, method, cashInput }),
+      );
+    } catch {
+      /* Continue if browser storage is unavailable. */
+    }
+    try {
+      const r = await fetch("/api/payments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: saleId,
+          items: cart,
+          cash: cashApplied,
+          qr: qrCents,
+        }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw Error(d.error);
+      setPayment(d);
+      setConfirmed(!!d.paid);
+    } catch (e: any) {
+      setPaymentError(e.message);
+    } finally {
+      paymentRequest.current = false;
+      setQrLoading(false);
+    }
+  }
+  useEffect(() => {
+    if (
+      !data?.payments.gatewayReady ||
+      !payOpen ||
+      method !== "qr" ||
+      qrLocked ||
+      !saleId ||
+      qrCents <= 0
+    )
+      return;
+    const timer = setTimeout(() => {
+      void generatePayment();
+    }, 900);
+    return () => clearTimeout(timer);
+  }, [payOpen, method, cashInput, saleId, qrLocked]);
+  useEffect(() => {
+    if (
+      busy ||
+      !qrLocked ||
+      !saleId ||
+      !data ||
+      payment?.paid ||
+      payment?.cancelled
+    )
+      return;
+    let stopped = false;
+    const epoch = paymentEpoch.current;
+    let timer: ReturnType<typeof setTimeout>;
+    async function poll() {
+      try {
+        const r = await fetch(
+          "/api/payments?id=" + encodeURIComponent(saleId),
+          { cache: "no-store" },
+        );
+        const d = await r.json();
+        if (!r.ok) throw Error(d.error);
+        if (!stopped && epoch === paymentEpoch.current) {
+          setPayment(d);
+          setConfirmed(!!d.paid);
+          setPaymentError(
+            d.state === "error"
+              ? "No se recibió el QR del banco. Verifica la referencia " +
+                  d.reference +
+                  " antes de iniciar otro cobro."
+              : "",
+          );
+        }
+      } catch (e: any) {
+        if (!stopped && epoch === paymentEpoch.current)
+          setPaymentError(e.message);
+      }
+      if (!stopped && epoch === paymentEpoch.current)
+        timer = setTimeout(poll, 3000);
+    }
+    timer = setTimeout(poll, 3000);
+    return () => {
+      stopped = true;
+      clearTimeout(timer);
+    };
+  }, [
+    qrLocked,
+    saleId,
+    data?.user.email,
+    payment?.paid,
+    payment?.cancelled,
+    busy,
+  ]);
+  async function cancelPayment(nextMethod?: string) {
+    if (cancelRequest.current || busy || qrLoading || paymentRequest.current)
+      return;
+    cancelRequest.current = true;
+    setBusy(true);
+    ++paymentEpoch.current;
+    try {
+      const r = await fetch("/api/payments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "cancel", id: saleId }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw Error(d.error);
+      if (d.paid) {
+        setPayment(d);
+        setConfirmed(true);
+        // Restore the split if an older client changed the method while QR was active.
+        setMethod(d.amount === total ? "qr" : "mixed");
+        setCashInput(((total - d.amount) / 100).toFixed(2));
+        setPayOpen(true);
+        toast.error(
+          "El banco ya recibió el pago. Guarda esta venta; no se puede cancelar el cobro.",
+        );
+        return;
+      }
+      if (!d.cancelled) throw Error("El banco aún no confirmó la anulación.");
+      try {
+        sessionStorage.removeItem("configor-pending-payment");
+      } catch {}
+      setQrLocked(false);
+      setPayment(null);
+      setConfirmed(false);
+      setPaymentError("");
+      setSaleId(crypto.randomUUID());
+      setMethod(nextMethod || "cash");
+      setCashInput(nextMethod === "mixed" ? "" : (total / 100).toFixed(2));
+      if (!nextMethod) setPayOpen(false);
+      toast.success("Cobro cancelado. Puedes editar la venta.");
+    } catch (e: any) {
+      setPaymentError(e.message);
+      toast.error(e.message);
+    } finally {
+      cancelRequest.current = false;
+      setBusy(false);
+    }
+  }
+  function changePaymentMethod(value: string) {
+    if (busy || qrLoading || paymentRequest.current || confirmed) return;
+    if (qrLocked) {
+      void cancelPayment(value);
+      return;
+    }
+    setMethod(value);
+    setConfirmed(false);
+    setCashInput(value === "mixed" ? "" : (total / 100).toFixed(2));
+  }
+  function resetCancelledPayment() {
+    void cancelPayment("cash");
+  }
   async function checkout() {
     if (locked.current) return;
     if (method === "cash" && cashCents < total)
@@ -266,6 +474,13 @@ export function useApp() {
             }
           : old,
       );
+      try {
+        sessionStorage.removeItem("configor-pending-payment");
+      } catch {}
+      setQrLocked(false);
+      setPayment(null);
+      setConfirmed(false);
+      setPaymentError("");
       setCart([]);
       setPayOpen(false);
       setSelected(result.sale);
@@ -296,23 +511,6 @@ export function useApp() {
       setImportRows(result.products);
     } catch (e: any) {
       setImportError(e.message);
-    }
-  }
-  async function uploadQR(file?: File) {
-    if (!file) return;
-    setBusy(true);
-    try {
-      const form = new FormData();
-      form.append("file", file);
-      const r = await fetch("/api/qr", { method: "POST", body: form });
-      const d: any = await r.json();
-      if (!r.ok) throw Error(d.error);
-      await load();
-      toast.success("QR actualizado");
-    } catch (e: any) {
-      toast.error(e.message);
-    } finally {
-      setBusy(false);
     }
   }
   const admin = data?.user.role === "admin";
@@ -349,7 +547,7 @@ export function useApp() {
         "Estado",
       ],
       ...filtered.map((s) => [
-        s.id,
+        s.reference || s.id,
         s.created,
         s.cashier,
         (s.total / 100).toFixed(2),
@@ -443,7 +641,15 @@ export function useApp() {
     qrCents,
     checkout,
     importFile,
-    uploadQR,
+    payment,
+    paymentError,
+    qrLocked,
+    qrLoading,
+    generatePayment,
+    resetCancelledPayment,
+    cancelPayment,
+    changePaymentMethod,
+    saleId,
     admin,
     filtered,
     completed,

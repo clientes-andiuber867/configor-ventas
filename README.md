@@ -1,6 +1,6 @@
 # CONFIGOR · Ventas
 
-Sistema Next.js con Supabase para productos, usuarios, sesiones, ventas y configuración; QR en Storage privado. Puede ejecutarse localmente y requiere internet para consultar y guardar datos.
+Sistema Next.js con Supabase para productos, usuarios, sesiones, ventas y configuración; QR dinámico mediante Banco Económico. Puede ejecutarse localmente y requiere internet para consultar y guardar datos.
 
 ## Arranque
 
@@ -36,4 +36,8 @@ Las pruebas locales usan datos temporales y puerto 3006. `scripts/verify-supabas
 - [Rendimiento medido](docs/performance.md)
 - [Ejecución y alojamiento](docs/deployment.md)
 
-La web confirma lecturas del escáner, pero no siempre su conexión física. El cajero verifica el abono bancario manualmente. El comprobante es interno.
+La web confirma lecturas del escáner, pero no siempre su conexión física. El banco confirma automáticamente el pago QR antes de habilitar el registro de la venta. El comprobante es interno.
+
+## Pasarela QR
+
+Antes de ejecutar esta versión con Supabase, aplica `supabase/migrations/004_dynamic_payments.sql` en el SQL Editor del proyecto. Configura las variables `BANECO_*` indicadas en `config/environment.example` tanto localmente como en el hosting. Consulta `docs/payments.md` para el flujo, las pruebas y la recuperación.

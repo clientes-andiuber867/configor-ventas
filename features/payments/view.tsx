@@ -6,7 +6,6 @@ import {
   QrCode,
   ShieldCheck,
   ShoppingBag,
-  Upload,
   Wallet,
 } from "lucide-react";
 export function PaymentsView({ s }: { s: AppState }) {
@@ -18,37 +17,17 @@ export function PaymentsView({ s }: { s: AppState }) {
           <QrCode size={21} />
         </div>
         <div className="qr-preview">
-          {s.data?.payments.hasQr ? (
-            <img
-              src={
-                "/api/qr?v=" +
-                encodeURIComponent(s.data?.payments.qrVersion || "")
-              }
-              alt="QR bancario de CONFIGOR"
-            />
-          ) : (
-            <>
-              <QrCode size={80} strokeWidth={1} />
-              <p>Agrega el QR de tu cuenta bancaria</p>
-            </>
-          )}
+          <QrCode size={80} strokeWidth={1} />
+          <p>QR dinámico · Banco Económico</p>
         </div>
-        <label className="secondary file-button">
-          <Upload size={17} />{" "}
-          {s.data?.payments.hasQr ? "Cambiar QR" : "Subir QR bancario"}
-          <input
-            disabled={s.busy}
-            type="file"
-            accept="image/png,image/jpeg,image/webp"
-            onChange={(e) => {
-              s.uploadQR(e.target.files?.[0]);
-              e.target.value = "";
-            }}
-          />
-        </label>
+        <p>
+          {s.data?.payments.gatewayReady
+            ? "Credenciales configuradas en el servidor."
+            : "Falta configurar las credenciales bancarias en el servidor."}
+        </p>
         <p className="hint">
-          PNG, JPG o WebP · máximo 2 MB. Usa un QR reutilizable de tu banco, sin
-          monto fijo.
+          Cada compra genera un QR de un solo uso, con importe fijo y una
+          referencia como C000001. En pagos mixtos se cobra únicamente el saldo.
         </p>
       </section>
       <section className="panel">
@@ -79,8 +58,9 @@ export function PaymentsView({ s }: { s: AppState }) {
         <div className="notice">
           <AlertCircle size={20} />
           <span>
-            Este QR se muestra en cada cobro. El cajero debe verificar el abono
-            en la cuenta; el sistema no consulta al banco.
+            Configor consulta al banco automáticamente y habilita el registro de
+            la venta cuando el pago está confirmado. El nombre del titular es
+            informativo; la cuenta receptora se configura en el servidor.
           </span>
         </div>
         <h2 className="spaced">Métodos disponibles</h2>

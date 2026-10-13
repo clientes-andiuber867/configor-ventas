@@ -1,3 +1,4 @@
+import { bankConfigured } from "@/features/payments/bank";
 import {
   authorize,
   checkOrigin,
@@ -51,7 +52,7 @@ export async function GET(req: Request) {
     if (cloudEnabled()) {
       const token = (await cookies()).get("configor_session")?.value;
       if (!token) throw new HttpError(401, "Inicia sesión para continuar.");
-      const data = await rest("rpc/configor_workspace", "", {
+      const data = await rest<any>("rpc/configor_workspace", "", {
         method: "POST",
         body: JSON.stringify({
           p_token: digest(token),
@@ -61,6 +62,7 @@ export async function GET(req: Request) {
         }),
       });
       if (!data) throw new HttpError(401, "Inicia sesión para continuar.");
+      if (data.payments) data.payments.gatewayReady = bankConfigured();
       return Response.json(data, { headers: { "Cache-Control": "no-store" } });
     }
     const user = await authorize();
@@ -83,6 +85,7 @@ export async function GET(req: Request) {
         members,
         rule: settings.rule,
         payments: {
+          gatewayReady: bankConfigured(),
           recipient: settings.payments.recipient,
           hasQr: !!settings.payments.qrKey,
           qrVersion: settings.payments.qrKey,

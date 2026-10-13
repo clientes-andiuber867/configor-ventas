@@ -91,6 +91,7 @@ export function POS({ s }: { s: AppState }) {
                     </TableCell>
                     <TableCell>
                       <button
+                        disabled={s.qrLocked}
                         aria-label={"Quitar " + l.name}
                         onClick={() =>
                           s.setCart((c) => c.filter((x) => x.id !== l.id))
@@ -144,16 +145,32 @@ export function POS({ s }: { s: AppState }) {
           className="primary wide"
           disabled={!s.cart.length}
           onClick={() => {
-            s.setMethod("cash");
-            s.setCashInput((s.total / 100).toFixed(2));
-            s.setConfirmed(false);
-            s.setSaleId(crypto.randomUUID());
+            if (!s.qrLocked) {
+              s.setMethod("cash");
+              s.setCashInput((s.total / 100).toFixed(2));
+              s.setConfirmed(false);
+              s.setSaleId(crypto.randomUUID());
+            }
             s.setPayOpen(true);
           }}
         >
-          <Wallet size={18} /> Cobrar venta
+          <Wallet size={18} />{" "}
+          {s.qrLocked ? "Retomar cobro QR" : "Cobrar venta"}
         </button>
-        <p className="hint">Efectivo, QR o pago mixto.</p>
+        {s.qrLocked && !s.confirmed && (
+          <button
+            className="secondary wide"
+            disabled={s.busy || s.qrLoading}
+            onClick={() => s.cancelPayment()}
+          >
+            {s.busy ? "Cancelando cobro…" : "Cancelar cobro y editar"}
+          </button>
+        )}
+        <p className="hint">
+          {s.qrLocked
+            ? "Cancela el cobro pendiente para añadir o quitar productos."
+            : "Efectivo, QR o pago mixto."}
+        </p>
         <div className="notice">
           <ShieldCheck size={18} />
           <span>La venta se guarda al confirmar el cobro.</span>

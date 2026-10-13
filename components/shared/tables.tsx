@@ -21,14 +21,16 @@ export function Choice({
   onChange,
   options,
   label,
+  disabled = false,
 }: {
   value: string;
   onChange: (v: string) => void;
   options: [string, string][];
   label: string;
+  disabled?: boolean;
 }) {
   return (
-    <Select value={value} onValueChange={onChange}>
+    <Select value={value} onValueChange={onChange} disabled={disabled}>
       <SelectTrigger aria-label={label}>
         <SelectValue />
       </SelectTrigger>
@@ -106,7 +108,7 @@ export function SaleTable({
         {sales.map((s) => (
           <TableRow key={s.id}>
             <TableCell>
-              <b>#{s.id.slice(0, 8).toUpperCase()}</b>
+              <b>#{s.reference || s.id.slice(0, 8).toUpperCase()}</b>
               <small className="sub">
                 {new Date(s.created).toLocaleString("es-BO", {
                   timeZone: "America/La_Paz",

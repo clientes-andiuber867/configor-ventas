@@ -1,3 +1,4 @@
+import { reserveIntent, verifyIntent } from "@/features/payments/intents";
 import { HttpError } from "@/features/auth/server";
 import { decodeBarcode, type Line, type Member } from "@/lib/domain";
 import {
@@ -7,7 +8,7 @@ import {
   voidSale,
 } from "@/lib/supabase/repository";
 import { z } from "zod";
-const saleSchema = z.object({
+export const saleSchema = z.object({
   id: z.string().uuid(),
   items: z
     .array(
@@ -23,9 +24,9 @@ const saleSchema = z.object({
     .max(100),
   cash: z.number().int().nonnegative(),
   qr: z.number().int().nonnegative(),
-  qrConfirmed: z.boolean(),
+  qrConfirmed: z.boolean().optional(),
 });
-export async function registerSale(input: unknown, user: Member) {
+export async function prepareSale(input: unknown) {
   const d = saleSchema.parse(input);
   const [products, settings] = await Promise.all([
     listProducts(),
@@ -52,16 +53,15 @@ export async function registerSale(input: unknown, user: Member) {
   const total = items.reduce((n, l) => n + l.amount, 0);
   if (total !== d.cash + d.qr)
     throw new HttpError(400, "Los pagos deben sumar exactamente el total.");
-  if (
-    d.qr > 0 &&
-    (!d.qrConfirmed || !settings.payments.qrKey || !settings.payments.recipient)
-  )
-    throw new HttpError(
-      400,
-      "Configura el QR y confirma la recepción del pago.",
-    );
+  return { d, items, total, settings };
+}
+export async function registerSale(input: unknown, user: Member) {
+  const { d, items, total, settings } = await prepareSale(input);
+  const intent = await reserveIntent(d, user.email);
+  if (d.qr > 0) await verifyIntent(intent, true);
   const sale = await insertSale({
     id: d.id,
+    qr_id: intent.qrId || undefined,
     created: new Date().toISOString(),
     cashier: user.email,
     total,

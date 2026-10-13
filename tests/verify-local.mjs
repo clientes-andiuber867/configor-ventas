@@ -1,3 +1,4 @@
+import { createServer } from "node:http";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
@@ -39,6 +40,52 @@ await writeFile(
     sessions: [],
   }),
 );
+const bankPayments = new Map();
+let generated = 0;
+const bank = createServer(async (req, res) => {
+  res.setHeader("Content-Type", "application/json");
+  if (req.url.startsWith("/api/authentication/encrypt"))
+    return res.end(JSON.stringify("encrypted-test"));
+  if (req.url === "/api/authentication/authenticate")
+    return res.end(JSON.stringify({ responseCode: 0, token: "test-token" }));
+  if (req.url === "/api/qrsimple/generateQR") {
+    let raw = "";
+    for await (const chunk of req) raw += chunk;
+    const payload = JSON.parse(raw);
+    assert.equal(payload.currency, "BOB");
+    assert.equal(payload.singleUse, true);
+    assert.equal(payload.modifyAmount, false);
+    assert.match(payload.transactionId, /^Q[0-9a-f]{32}$/);
+    assert.match(payload.description, /^C\d{6}$/);
+    const qrId = "bank-" + ++generated;
+    bankPayments.set(qrId, { amount: payload.amount, paid: false, payload });
+    return res.end(
+      JSON.stringify({ responseCode: 0, qrId, qrImage: "test-image" }),
+    );
+  }
+  if (req.url === "/api/qrsimple/cancelQR") {
+    assert.equal(req.method, "DELETE");
+    let raw = "";
+    for await (const chunk of req) raw += chunk;
+    const p = bankPayments.get(JSON.parse(raw).qrId);
+    if (p.failCancel) return res.end(JSON.stringify({ responseCode: 5 }));
+    if (p.payDuringCancel) p.paid = true;
+    if (p.paid) return res.end(JSON.stringify({ responseCode: 1 }));
+    p.cancelled = true;
+    return res.end(JSON.stringify({ responseCode: 0 }));
+  }
+  const payment = bankPayments.get(
+    decodeURIComponent(req.url.split("/").at(-1)),
+  );
+  return res.end(
+    JSON.stringify({
+      responseCode: 0,
+      statusQrCode: payment?.paid ? 1 : payment?.cancelled ? 9 : 0,
+      payment: payment?.paid ? [{ amount: payment.amount }] : [],
+    }),
+  );
+});
+await new Promise((resolve) => bank.listen(0, "127.0.0.1", resolve));
 const child = spawn(
   process.execPath,
   [
@@ -54,6 +101,11 @@ const child = spawn(
       ...process.env,
       CONFIGOR_DATA_DIR: directory,
       CONFIGOR_STORAGE: "local",
+      BANECO_BASE_URL: "http://127.0.0.1:" + bank.address().port,
+      BANECO_USER: "test",
+      BANECO_PASSWORD: "test",
+      BANECO_ACCOUNT: "test",
+      BANECO_AES_KEY: "test",
     },
     stdio: ["ignore", "pipe", "pipe"],
   },
@@ -252,38 +304,169 @@ try {
     400,
   );
   await request("/api/data", labelSale, cashierCookie);
-  const form = new FormData();
-  form.append(
-    "file",
-    new File(
-      [
-        Buffer.from(
-          "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aO1sAAAAASUVORK5CYII=",
-          "base64",
-        ),
-      ],
-      "qr.png",
-      { type: "image/png" },
-    ),
+  const mixed = { ...labelSale, id: crypto.randomUUID(), cash: 1000, qr: 630 };
+  await request("/api/payments", mixed, "", 401);
+  // A cashier's checkbox cannot replace bank verification.
+  await request(
+    "/api/data",
+    { ...mixed, qrConfirmed: true },
+    cashierCookie,
+    400,
   );
-  assert.equal(
-    (
-      await fetch(base + "/api/qr", {
-        method: "POST",
-        headers: { Origin: base, Cookie: adminCookie },
-        body: form,
-      })
-    ).status,
-    200,
+  const intents = await Promise.all([
+    request("/api/payments", mixed, cashierCookie),
+    request("/api/payments", mixed, cashierCookie),
+  ]);
+  assert.equal(generated, 1, "Only one bank request for concurrent generation");
+  const intent = (
+    await request("/api/payments?id=" + mixed.id, null, cashierCookie)
+  ).data;
+  assert.equal(intent.amount, 630);
+  assert.equal(intent.reference, intents[0].data.reference);
+  assert.equal(bankPayments.get(intent.qrId).payload.amount, 6.3);
+  await request("/api/payments?id=" + mixed.id, null, adminCookie, 404);
+  await request(
+    "/api/payments",
+    { ...mixed, cash: 500, qr: 1130 },
+    cashierCookie,
+    409,
   );
   await request(
     "/api/data",
-    { action: "payments", recipient: "Beneficiario de prueba" },
-    adminCookie,
+    { ...mixed, qrConfirmed: true },
+    cashierCookie,
+    400,
   );
-  const mixed = { ...labelSale, id: crypto.randomUUID(), cash: 1000, qr: 630 };
-  await request("/api/data", mixed, cashierCookie, 400);
-  await request("/api/data", { ...mixed, qrConfirmed: true }, cashierCookie);
+  bankPayments.get(intent.qrId).paid = true;
+  bankPayments.get(intent.qrId).amount = 1;
+  await request("/api/data", mixed, cashierCookie, 409);
+  bankPayments.get(intent.qrId).amount = 6.3;
+  const status = (
+    await request("/api/payments?id=" + mixed.id, null, cashierCookie)
+  ).data;
+  assert.equal(status.paid, true);
+  const saved = await Promise.all([
+    request("/api/data", mixed, cashierCookie),
+    request("/api/data", mixed, cashierCookie),
+  ]);
+  assert.equal(saved[0].data.sale.reference, intent.saleReference);
+  assert.equal(saved[0].data.sale.qr_id, intent.qrId);
+  const allQr = { ...labelSale, id: crypto.randomUUID(), cash: 0, qr: 1630 };
+  const full = (await request("/api/payments", allQr, cashierCookie)).data;
+  assert.equal(bankPayments.get(full.qrId).payload.amount, 16.3);
+  assert.notEqual(full.reference, intent.reference);
+  bankPayments.get(full.qrId).paid = true;
+  await request("/api/data", allQr, cashierCookie);
+  await request(
+    "/api/data",
+    { ...allQr, id: crypto.randomUUID(), qrConfirmed: true },
+    cashierCookie,
+    400,
+  );
+  console.log(
+    "PASS: dynamic QR, exact mixed/full amounts, sequential references, authenticated ownership, bank confirmation, amount mismatch, concurrent generation and idempotent sale registration.",
+  );
+  const editable = { ...allQr, id: crypto.randomUUID() };
+  const pending = (await request("/api/payments", editable, cashierCookie))
+    .data;
+  const cancellation = { action: "cancel", id: editable.id };
+  await request("/api/payments", cancellation, "", 401);
+  await request("/api/payments", cancellation, adminCookie, 404);
+  bankPayments.get(pending.qrId).failCancel = true;
+  await request("/api/payments", cancellation, cashierCookie, 500);
+  assert.equal(
+    (await request("/api/payments?id=" + editable.id, null, cashierCookie)).data
+      .cancelled,
+    false,
+  );
+  bankPayments.get(pending.qrId).failCancel = false;
+  const nextBeforeCancellation = pending.saleReference;
+  const cancelled = (
+    await request("/api/payments", cancellation, cashierCookie)
+  ).data;
+  assert.equal(cancelled.cancelled, true);
+  assert.equal(bankPayments.get(pending.qrId).cancelled, true);
+  assert.equal(
+    (await request("/api/payments", cancellation, cashierCookie)).data
+      .cancelled,
+    true,
+  );
+  await request("/api/data", editable, cashierCookie, 409);
+  await request("/api/payments", editable, cashierCookie, 409);
+  assert(
+    !(await request("/api/data", null, cashierCookie)).data.sales.some(
+      (x) => x.id === editable.id,
+    ),
+    "Cancelling a QR does not register a sale",
+  );
+  const cashAfterCancel = {
+    ...editable,
+    id: crypto.randomUUID(),
+    cash: 1630,
+    qr: 0,
+  };
+  const cashSaved = (await request("/api/data", cashAfterCancel, cashierCookie))
+    .data.sale;
+  assert.equal(
+    cashSaved.reference,
+    nextBeforeCancellation,
+    "Cancelled QR does not consume a sale number",
+  );
+  const changed = {
+    ...editable,
+    id: crypto.randomUUID(),
+    items: [...editable.items, ...editable.items],
+    qr: 3260,
+  };
+  const regenerated = (await request("/api/payments", changed, cashierCookie))
+    .data;
+  assert.equal(regenerated.amount, 3260);
+  assert.notEqual(regenerated.reference, pending.reference);
+  // A payment arriving during cancellation must win: keep the original sale payable.
+  bankPayments.get(regenerated.qrId).payDuringCancel = true;
+  const race = (
+    await request(
+      "/api/payments",
+      { action: "cancel", id: changed.id },
+      cashierCookie,
+    )
+  ).data;
+  assert.equal(race.paid, true);
+  assert.equal(race.cancelled, false);
+  await request("/api/data", changed, cashierCookie);
+  assert.equal(
+    (
+      await request(
+        "/api/payments",
+        { action: "cancel", id: changed.id },
+        cashierCookie,
+      )
+    ).data.paid,
+    true,
+  );
+  const numberedSales = (await request("/api/data", null, cashierCookie)).data
+    .sales;
+  const numbers = numberedSales
+    .map((x) => Number(x.reference.slice(1)))
+    .sort((a, b) => a - b);
+  assert.deepEqual(
+    numbers,
+    numbers.map((_, i) => i + 1),
+    "Committed sales have no gaps despite cancelled/failed/retried payments",
+  );
+  const concurrentCash = [crypto.randomUUID(), crypto.randomUUID()].map(
+    (id) => ({ ...cashAfterCancel, id }),
+  );
+  const results = await Promise.all(
+    concurrentCash.map((sale) => request("/api/data", sale, cashierCookie)),
+  );
+  assert.notEqual(
+    results[0].data.sale.reference,
+    results[1].data.sale.reference,
+  );
+  console.log(
+    "PASS: cancellation, failed cancellation, ownership, repeat cancellation, no sale before payment, new cash/edited QR purchase, payment racing cancellation.",
+  );
   const period = (
     await request(
       "/api/data?scope=sales&from=2000-01-01&to=2000-01-02",
@@ -330,4 +513,6 @@ try {
   );
 } finally {
   child.kill();
+  bank.closeAllConnections();
+  bank.close();
 }

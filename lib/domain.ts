@@ -15,6 +15,8 @@ export type Line = {
   source: "label" | "manual";
 };
 export type Sale = {
+  reference?: string;
+  qr_id?: string;
   id: string;
   created: string;
   cashier: string;
@@ -143,3 +145,16 @@ export const referenceProducts: Product[] = [
   price: [70, 60, 75, 75, 75, 35, 32, 58, 15, 42, 75, 75, 80, 58, 75][i] * 100,
   mode: "weight",
 }));
+
+// Only committed sales consume a number, including sales subsequently voided.
+export function nextSaleReference(sales: Pick<Sale, "reference">[]) {
+  const next =
+    sales.reduce(
+      (max, sale) =>
+        /^C[0-9]+$/.test(sale.reference || "")
+          ? Math.max(max, Number(sale.reference!.slice(1)))
+          : max,
+      0,
+    ) + 1;
+  return "C" + String(next).padStart(6, "0");
+}

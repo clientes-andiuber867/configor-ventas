@@ -1,3 +1,4 @@
+import { nextSaleReference } from "../domain";
 import "server-only";
 import { cloudEnabled, rest } from "./client";
 import { readStore, updateStore, type LocalMember } from "../local-store";
@@ -167,15 +168,15 @@ export async function insertSale(sale: Sale): Promise<Sale> {
     return updateStore((s) => {
       const old = s.sales.find((x) => x.id === sale.id);
       if (old) return old;
+      sale = { ...sale, reference: nextSaleReference(s.sales) };
       s.sales.push(sale);
       return sale;
     });
-  const rows = await rest<Sale[]>(
-    "configor_sales",
+  return rest<Sale>(
+    "rpc/configor_insert_numbered_sale",
     "",
-    write(sale, "POST", "resolution=ignore-duplicates,return=representation"),
+    write({ p_sale: sale }),
   );
-  return rows[0] || (await findSale(sale.id))!;
 }
 export async function voidSale(id: string, reason: string) {
   if (!cloudEnabled())
