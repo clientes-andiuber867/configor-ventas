@@ -2,16 +2,35 @@
 import { Empty, SaleTable } from "@/components/shared/tables";
 import { type AppState } from "@/features/workspace/use-workspace";
 import { money } from "@/lib/domain";
+import { useMemo } from "react";
+import "./dashboard.css";
 import {
   ReceiptText,
   Scale,
   ScanBarcode,
   ShoppingBag,
   Wallet,
+  ArrowUpRight,
+  ChartNoAxesCombined,
 } from "lucide-react";
+const boliviaHour = new Intl.DateTimeFormat("en-GB", {
+  timeZone: "America/La_Paz",
+  hour: "2-digit",
+  hourCycle: "h23",
+});
 export function Dashboard({ s }: { s: AppState }) {
+  const hourly = useMemo(() => {
+    const totals = Array<number>(12).fill(0);
+    for (const sale of s.completed) {
+      const bucket = Math.floor(
+        Number(boliviaHour.format(new Date(sale.created))) / 2,
+      );
+      totals[bucket] += sale.total;
+    }
+    return totals;
+  }, [s.completed]);
   return (
-    <>
+    <div className="dashboard-view">
       <div className="stats">
         {[
           [
@@ -48,7 +67,9 @@ export function Dashboard({ s }: { s: AppState }) {
           <div className="stat" key={label}>
             <div>
               {label}
-              <Icon size={19} />
+              <span className="stat-icon">
+                <Icon size={19} aria-hidden="true" />
+              </span>
             </div>
             <strong>{value}</strong>
             <small>{note}</small>
@@ -58,33 +79,31 @@ export function Dashboard({ s }: { s: AppState }) {
       <div className="dashboard-grid">
         <section className="panel">
           <div className="panel-title">
-            <h2>Actividad de ventas</h2>
+            <div className="dashboard-panel-heading">
+              <span className="panel-symbol">
+                <ChartNoAxesCombined size={19} aria-hidden="true" />
+              </span>
+              <div>
+                <h2>Actividad de ventas</h2>
+                <p>El movimiento de tu negocio</p>
+              </div>
+            </div>
             <span className="badge">{s.completed.length} ventas</span>
           </div>
           {s.completed.length ? (
             <div className="sales-chart">
-              {Array.from({ length: 12 }, (_, i) => {
-                const val = s.completed
-                  .filter(
-                    (x) =>
-                      Math.floor(
-                        Number(
-                          new Intl.DateTimeFormat("en-GB", {
-                            timeZone: "America/La_Paz",
-                            hour: "2-digit",
-                            hour12: false,
-                          }).format(new Date(x.created)),
-                        ) / 2,
-                      ) === i,
-                  )
-                  .reduce((n, x) => n + x.total, 0);
+              {hourly.map((val, i) => {
                 return (
                   <div className="bar-column" key={i}>
                     <div
                       title={money(val)}
                       className="bar"
                       style={{
-                        height: Math.max(3, (val / s.revenue) * 200) + "px",
+                        height:
+                          Math.max(
+                            3,
+                            s.revenue > 0 ? (val / s.revenue) * 200 : 0,
+                          ) + "px",
                       }}
                     />
                     <small>{String(i * 2).padStart(2, "0")}h</small>
@@ -107,7 +126,7 @@ export function Dashboard({ s }: { s: AppState }) {
           </div>
         </section>
         <section className="panel dark-panel">
-          <p className="eyebrow">CONFIGOR CARNES</p>
+          <p className="eyebrow">EL SIGUIENTE PASO</p>
           <h2>
             Una caja lista
             <br />
@@ -119,7 +138,7 @@ export function Dashboard({ s }: { s: AppState }) {
             className="primary"
             onClick={() => s.setPage("Punto de venta")}
           >
-            Abrir punto de venta
+            Abrir punto de venta <ArrowUpRight size={17} aria-hidden="true" />
           </button>
         </section>
       </div>
@@ -188,6 +207,6 @@ export function Dashboard({ s }: { s: AppState }) {
         </div>
         <SaleTable sales={s.filtered.slice(0, 5)} onSelect={s.setSelected} />
       </section>
-    </>
+    </div>
   );
 }

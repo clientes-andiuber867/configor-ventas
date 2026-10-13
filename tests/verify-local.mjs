@@ -301,6 +301,60 @@ try {
     cashierCookie,
     403,
   );
+  await request("/api/cash-register", null, "", 401);
+  const closedAttempt = {
+    action: "sale",
+    id: crypto.randomUUID(),
+    items: [
+      {
+        code: "0470101",
+        barcode: "04701019",
+        grams: 100,
+        amount: 1000,
+        source: "manual",
+      },
+    ],
+    cash: 1000,
+    qr: 0,
+  };
+  await request("/api/data", closedAttempt, cashierCookie, 409);
+  await request(
+    "/api/payments",
+    { ...closedAttempt, cash: 0, qr: 1000 },
+    cashierCookie,
+    409,
+  );
+  assert.equal(generated, 0, "Closed register must not contact the bank");
+  const shiftId = crypto.randomUUID();
+  const opening = {
+    action: "open",
+    id: shiftId,
+    amount: 10000,
+    note: "Fondo inicial",
+  };
+  await request(
+    "/api/cash-register",
+    { ...opening, amount: -1 },
+    cashierCookie,
+    400,
+  );
+  const opened = await Promise.all([
+    request("/api/cash-register", opening, cashierCookie),
+    request("/api/cash-register", opening, cashierCookie),
+  ]);
+  assert.equal(opened[0].data.active.id, opened[1].data.active.id);
+  await request(
+    "/api/cash-register",
+    { ...opening, id: crypto.randomUUID() },
+    cashierCookie,
+    409,
+  );
+  await request(
+    "/api/cash-register",
+    { action: "close", id: shiftId, amount: 10000, note: "" },
+    adminCookie,
+    404,
+  );
   const id = crypto.randomUUID(),
     sale = {
       action: "sale",
@@ -452,6 +506,17 @@ try {
   const editable = { ...allQr, id: crypto.randomUUID() };
   const pending = (await request("/api/payments", editable, cashierCookie))
     .data;
+  await request(
+    "/api/cash-register",
+    {
+      action: "close",
+      id: shiftId,
+      amount: 10000,
+      note: "No cerrar con QR pendiente",
+    },
+    cashierCookie,
+    409,
+  );
   const cancellation = { action: "cancel", id: editable.id };
   await request("/api/payments", cancellation, "", 401);
   await request("/api/payments", cancellation, adminCookie, 404);
@@ -549,6 +614,123 @@ try {
   );
   console.log(
     "PASS: cancellation, failed cancellation, ownership, repeat cancellation, no sale before payment, new cash/edited QR purchase, payment racing cancellation.",
+  );
+  const snapshot = (await request("/api/cash-register", null, cashierCookie))
+    .data.active;
+  const shiftSales = (
+    await request("/api/data", null, cashierCookie)
+  ).data.sales.filter((s) => s.status === "completed");
+  assert(shiftSales.every((s) => s.cash_session_id === shiftId));
+  assert.equal(
+    snapshot.cash_sales,
+    shiftSales.reduce((sum, s) => sum + s.cash, 0),
+  );
+  assert.equal(
+    snapshot.qr_sales,
+    shiftSales.reduce((sum, s) => sum + s.qr, 0),
+  );
+  assert.equal(snapshot.expected, 10000 + snapshot.cash_sales);
+  await request(
+    "/api/cash-register",
+    { action: "close", id: shiftId, amount: snapshot.expected - 100, note: "" },
+    cashierCookie,
+    409,
+  );
+  const closing = {
+    action: "close",
+    id: shiftId,
+    amount: snapshot.expected - 100,
+    note: "Falta un boliviano al contar",
+  };
+  const closed = (await request("/api/cash-register", closing, cashierCookie))
+    .data;
+  assert.equal(closed.active, null);
+  await request(
+    "/api/data",
+    { ...closedAttempt, id: crypto.randomUUID() },
+    cashierCookie,
+    409,
+  );
+  await request(
+    "/api/payments",
+    { ...closedAttempt, id: crypto.randomUUID(), cash: 0, qr: 1000 },
+    cashierCookie,
+    409,
+  );
+  // A retry of a committed sale is still idempotent after closing its shift.
+  assert.equal(
+    (await request("/api/data", sale, cashierCookie)).data.sale.id,
+    sale.id,
+  );
+  assert.equal(closed.history[0].difference, -100);
+  assert.equal(closed.history[0].qr_sales, snapshot.qr_sales);
+  const repeatClose = (
+    await request(
+      "/api/cash-register",
+      { ...closing, amount: 0 },
+      cashierCookie,
+    )
+  ).data;
+  assert.equal(repeatClose.history[0].counted, closing.amount);
+  const newShift = { ...opening, id: crypto.randomUUID(), amount: 0 };
+  await request("/api/cash-register", newShift, cashierCookie);
+  assert.equal(
+    (await request("/api/cash-register", closing, cashierCookie)).data.active
+      .id,
+    newShift.id,
+  );
+  await request(
+    "/api/cash-register",
+    { action: "close", id: newShift.id, amount: 0, note: "" },
+    cashierCookie,
+  );
+  assert.equal(
+    (await request("/api/cash-register?history=1", null, adminCookie)).data
+      .history.length,
+    2,
+  );
+  // Seed an old sale only into this isolated fixture to exercise API permission boundaries.
+  const oldFixture = JSON.parse(
+    await readFile(path.join(directory, "configor.json"), "utf8"),
+  );
+  const historicalId = crypto.randomUUID();
+  oldFixture.sales.push({
+    ...oldFixture.sales[0],
+    id: historicalId,
+    created: "2001-01-01T12:00:00Z",
+    cash_session_id: null,
+  });
+  await writeFile(
+    path.join(directory, "configor.json"),
+    JSON.stringify(oldFixture),
+  );
+  for (const scope of ["", "&scope=sales"]) {
+    const visible = (
+      await request(
+        "/api/data?from=2000-01-01&to=2100-01-01" + scope,
+        null,
+        cashierCookie,
+      )
+    ).data.sales;
+    assert(
+      !visible.some((s) => s.id === historicalId),
+      "Historical sale leaked to cashier",
+    );
+    assert(visible.length > 0, "Today remains visible to cashier");
+    const all = (
+      await request(
+        "/api/data?from=2000-01-01&to=2100-01-01" + scope,
+        null,
+        adminCookie,
+      )
+    ).data.sales;
+    assert(
+      all.some((s) => s.id === historicalId),
+      "Admin can see historical sales",
+    );
+  }
+  console.log(
+    "PASS: cash register ownership, idempotent opening/closing, cash/QR separation, void exclusion, discrepancy notes, persisted history and server-side daily cashier restriction.",
   );
   const period = (
     await request(

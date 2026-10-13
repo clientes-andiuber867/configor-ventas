@@ -29,7 +29,7 @@ export async function GET(req: Request) {
           !Number.isNaN(Date.parse(s)) &&
           new Date(s).toISOString().slice(0, 10) === s,
       );
-    const from = day.parse(params.get("from") || today()),
+    let from = day.parse(params.get("from") || today()),
       to = day.parse(params.get("to") || today());
     if (from > to) throw new HttpError(400, "El período no es válido.");
     if (cloudEnabled()) {
@@ -49,6 +49,7 @@ export async function GET(req: Request) {
       return Response.json(data, { headers: { "Cache-Control": "no-store" } });
     }
     const user = await authorize();
+    if (user.role !== "admin") from = to = today();
     if (params.get("scope") === "sales")
       return Response.json(
         { sales: await listSales(from, to) },

@@ -26,7 +26,6 @@ import {
   ReceiptText,
   RefreshCw,
   ScanBarcode,
-  ShieldCheck,
   Users,
 } from "lucide-react";
 import dynamic from "next/dynamic";
@@ -34,6 +33,7 @@ import { useState } from "react";
 import { Toaster } from "sonner";
 import { Modals } from "./dialogs";
 import { useApp, type AppState } from "./use-workspace";
+import "./workspace-chrome.css";
 const Dashboard = dynamic(() =>
   import("@/features/dashboard/view").then((m) => m.Dashboard),
 );
@@ -65,22 +65,32 @@ export default function Workspace({
   const s = useApp();
   const [period, setPeriod] = useState("today");
   return (
-    <SidebarProvider>
+    <SidebarProvider className="configor-shell">
       <Toaster richColors position="top-right" />
       <Sidebar className="brand-sidebar">
         <SidebarHeader>
           <div className="brand">
-            <img src="/configor-logo.jpg" alt="CONFIGOR Carnes" />
-            <span>SISTEMA DE VENTAS</span>
+            <img
+              src="/login-assets/logo-79db2d18040f.webp"
+              width={88}
+              height={88}
+              alt="CONFIGOR Carnes"
+            />
+            <div className="brand-wordmark">
+              CONFIGOR <span>CARNES</span>
+            </div>
+            <span className="brand-tagline">GESTIÓN & VENTAS</span>
           </div>
         </SidebarHeader>
         <SidebarContent>
-          <p className="nav-caption">PRINCIPAL</p>
+          <p className="nav-caption">TU ESPACIO DE TRABAJO</p>
           <Navigation s={s} />
         </SidebarContent>
         <SidebarFooter>
           <div className="scale-note">
-            <ScanBarcode size={22} />
+            <span className="scanner-symbol">
+              <ScanBarcode size={20} aria-hidden="true" />
+            </span>
             <div>
               Lector de códigos
               <small>
@@ -91,10 +101,10 @@ export default function Workspace({
             </div>
           </div>
           <div className="profile">
-            <b>{s.admin ? "AD" : "VE"}</b>
+            <b aria-hidden="true">{s.admin ? "AD" : "VE"}</b>
             <div>
-              {s.admin ? "Administrador" : "Vendedor"}
-              <small>{s.data?.user.name || "CONFIGOR Carnes"}</small>
+              {s.data?.user.name || "CONFIGOR Carnes"}
+              <small>{s.admin ? "Administrador" : "Vendedor"}</small>
             </div>
           </div>
         </SidebarFooter>
@@ -104,16 +114,20 @@ export default function Workspace({
           <div>
             <SidebarTrigger />
             <span className="workspace-breadcrumb">
-              CONFIGOR <i>/</i> {s.page}
+              <b>CONFIGOR</b> <ChevronRight size={14} aria-hidden="true" />{" "}
+              <span>{s.page}</span>
             </span>
           </div>
           <div className="topbar-actions">
-            <div className="location">
-              <ShieldCheck size={16} /> Casa central · Bolivia{" "}
-              <button aria-label="Actualizar datos" onClick={() => s.load()}>
-                <RefreshCw size={16} />
-              </button>
-            </div>
+            <button
+              type="button"
+              className="topbar-refresh"
+              aria-label="Actualizar datos"
+              title="Actualizar datos"
+              onClick={() => s.load()}
+            >
+              <RefreshCw size={16} aria-hidden="true" />
+            </button>
             <button
               type="button"
               className="logout-button"
@@ -191,7 +205,11 @@ export default function Workspace({
             <>
               {["Resumen", "Ventas"].includes(s.page) && (
                 <div className="period">
-                  <PeriodFilter s={s} period={period} setPeriod={setPeriod} />
+                  {s.admin ? (
+                    <PeriodFilter s={s} period={period} setPeriod={setPeriod} />
+                  ) : (
+                    <span>Ventas de hoy · {today()}</span>
+                  )}
                   <span>Operación en bolivianos · Bs</span>
                 </div>
               )}
@@ -200,12 +218,33 @@ export default function Workspace({
               {s.page === "Ventas" && (
                 <section className="panel">
                   <div className="panel-title">
-                    <h2>Historial · {s.filtered.length} ventas</h2>
+                    <h2>Historial · {s.visibleSales.length} ventas</h2>
                     <button className="secondary" onClick={s.exportSales}>
                       <Download size={16} /> Exportar CSV
                     </button>
                   </div>
-                  <SaleTable sales={s.filtered} onSelect={s.setSelected} />
+                  <div
+                    className="sales-method-filter"
+                    role="group"
+                    aria-label="Filtrar por forma de pago"
+                  >
+                    {[
+                      ["all", "Todos"],
+                      ["cash", "Efectivo"],
+                      ["qr", "QR"],
+                      ["mixed", "Mixto"],
+                    ].map(([value, label]) => (
+                      <button
+                        type="button"
+                        key={value}
+                        aria-pressed={s.salesMethod === value}
+                        onClick={() => s.setSalesMethod(value)}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  <SaleTable sales={s.visibleSales} onSelect={s.setSelected} />
                 </section>
               )}
               {s.page === "Base de datos" && s.admin && <DatabaseView s={s} />}{" "}
@@ -236,15 +275,21 @@ function Navigation({ s }: { s: AppState }) {
         )
         .map(([name, Icon]) => (
           <SidebarMenuItem key={name}>
+            {name === "Base de datos" && (
+              <p className="nav-section-label">ADMINISTRACIÓN</p>
+            )}
             <SidebarMenuButton
               isActive={s.page === name}
+              aria-current={s.page === name ? "page" : undefined}
               onClick={() => {
                 s.setPage(name);
                 s.setQuery("");
                 setOpenMobile(false);
               }}
             >
-              <Icon />
+              <span className="nav-icon">
+                <Icon size={18} aria-hidden="true" />
+              </span>
               <span>{name}</span>
               {s.page === name && <ChevronRight className="ml-auto" />}
             </SidebarMenuButton>
@@ -275,6 +320,9 @@ function PeriodFilter({
     } else if (value === "month") {
       s.setFrom(iso(new Date(Date.UTC(year, month - 1, 1))));
       s.setTo(iso(new Date(Date.UTC(year, month, 0))));
+    } else if (value === "all") {
+      s.setFrom("2000-01-01");
+      s.setTo(current);
     } else {
       s.setFrom(iso(new Date(Date.UTC(year, month - 2, 1))));
       s.setTo(iso(new Date(Date.UTC(year, month - 1, 0))));
@@ -288,6 +336,7 @@ function PeriodFilter({
           <option value="today">Hoy</option>
           <option value="month">Este mes</option>
           <option value="previous">Mes anterior</option>
+          <option value="all">Todo el historial</option>
           <option value="custom">Personalizado</option>
         </select>
       </label>

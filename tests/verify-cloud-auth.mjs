@@ -23,6 +23,7 @@ const member = {
 };
 const records = new Map(),
   sessions = new Map();
+const calls = [];
 let deletes = 0,
   unavailable = false;
 const backend = createServer(async (req, res) => {
@@ -37,6 +38,48 @@ const backend = createServer(async (req, res) => {
       return res.end("{}");
     }
     const name = url.pathname.split("/").at(-1);
+    calls.push(name);
+    if (name === "configor_cash_workspace")
+      return res.end(
+        JSON.stringify(
+          sessions.has(body.p_token) ? { active: null, history: [] } : null,
+        ),
+      );
+    if (name === "configor_sale_context") {
+      assert(body.p_codes.includes("1234"));
+      assert(body.p_codes.length <= 3);
+      return res.end(
+        JSON.stringify({
+          products: [
+            {
+              code: "1234",
+              name: "Test",
+              plu: "1",
+              price: 1000,
+              mode: "weight",
+            },
+          ],
+          settings: {
+            owner: "admin",
+            rule: { enabled: false },
+            payments: { recipient: "", qrKey: "" },
+          },
+        }),
+      );
+    }
+    if (name === "configor_reserve_cash_payment")
+      return res.end(
+        JSON.stringify({
+          id: body.p_id,
+          cashier: body.p_cashier,
+          fingerprint: body.p_fingerprint,
+          amount: body.p_amount,
+          state: "new",
+          reference: "test",
+        }),
+      );
+    if (name === "configor_insert_cash_sale")
+      return res.end(JSON.stringify({ ...body.p_sale, reference: "C000001" }));
     if (name === "configor_login_claim") {
       const r = records.get(body.p_account) || {
         failures: 0,
@@ -177,8 +220,89 @@ try {
     assert.equal(response.status, 200);
     const cookie = response.headers.get("set-cookie").split(";")[0];
     assert.equal((await request(null, cookie)).status, 200);
+    const start = calls.length;
+    assert.equal(
+      (
+        await fetch(base + "/api/cash-register", {
+          headers: { Cookie: cookie },
+        })
+      ).status,
+      200,
+    );
+    assert.deepEqual(
+      calls.slice(start),
+      ["configor_cash_workspace"],
+      "Cash read needs one authenticated database call",
+    );
+    const postStart = calls.length;
+    assert.equal(
+      (
+        await fetch(base + "/api/cash-register", {
+          method: "POST",
+          headers: {
+            Cookie: cookie,
+            Origin: base,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            action: "open",
+            id: crypto.randomUUID(),
+            amount: 0,
+          }),
+        })
+      ).status,
+      200,
+    );
+    assert.deepEqual(
+      calls.slice(postStart),
+      ["configor_cash_workspace"],
+      "Cash mutation needs one authenticated database call",
+    );
+    const saleStart = calls.length;
+    const saleResponse = await fetch(base + "/api/data", {
+      method: "POST",
+      headers: {
+        Cookie: cookie,
+        Origin: base,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        action: "sale",
+        id: crypto.randomUUID(),
+        cash: 1000,
+        qr: 0,
+        items: [
+          {
+            code: "1234",
+            barcode: "1234",
+            grams: 100,
+            amount: 1000,
+            source: "manual",
+          },
+        ],
+      }),
+    });
+    assert.equal(saleResponse.status, 200, await saleResponse.text());
+    assert.deepEqual(
+      calls.slice(saleStart),
+      [
+        "configor_auth_user",
+        "configor_sale_context",
+        "configor_reserve_cash_payment",
+        "configor_insert_cash_sale",
+      ],
+      "Cash sale uses four calls and never downloads the full catalog",
+    );
     assert.equal((await request({ action: "logout" }, cookie)).status, 200);
     assert.equal((await request(null, cookie)).status, 401);
+    assert.equal(
+      (
+        await fetch(base + "/api/cash-register", {
+          headers: { Cookie: cookie },
+        })
+      ).status,
+      401,
+    );
   }
   assert.equal(
     deletes,

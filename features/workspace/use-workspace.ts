@@ -19,13 +19,15 @@ import { toast } from "sonner";
 import type { Data } from "./types";
 import { api } from "./api";
 export function useApp() {
+  const [cashOpen, setCashOpen] = useState(false);
   const [page, setPage] = useState("Resumen"),
     [data, setData] = useState<Data | null>(null),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
     [from, setFrom] = useState(today()),
     [to, setTo] = useState(today()),
-    [query, setQuery] = useState("");
+    [query, setQuery] = useState(""),
+    [salesMethod, setSalesMethod] = useState("all");
   const [cart, setCart] = useState<Line[]>([]),
     [scan, setScan] = useState(""),
     [lastScan, setLastScan] = useState(""),
@@ -117,9 +119,9 @@ export function useApp() {
     }
   }, [load, from, to]);
   useEffect(() => {
-    if (page === "Punto de venta" && !manual && !payOpen)
+    if (cashOpen && page === "Punto de venta" && !manual && !payOpen)
       scanRef.current?.focus();
-  }, [page, manual, payOpen]);
+  }, [page, manual, payOpen, cashOpen]);
   useEffect(() => {
     const unload = (e: BeforeUnloadEvent) => {
       if (cart.length) {
@@ -176,12 +178,14 @@ export function useApp() {
     }
   }
   function changeScan(raw: string) {
+    if (!cashOpen) return;
     scanBuffer.current = raw;
     setScan(raw);
     if (data?.rule.enabled && raw.trim().length === data.rule.pattern.length)
       addBarcode(raw);
   }
   function addBarcode(raw = scanBuffer.current) {
+    if (!cashOpen) return;
     if (!data || !raw.trim() || manual || payOpen || selected || qrLocked)
       return;
     try {
@@ -214,6 +218,8 @@ export function useApp() {
     scanRef.current?.focus();
   }
   function addManual() {
+    if (!cashOpen)
+      return toast.error("Abre tu caja antes de añadir productos.");
     const a = Math.round(Number(amount.replace(",", ".")) * 100);
     const g = weight
       ? Math.round(Number(weight.replace(",", ".")) * 1000)
@@ -262,13 +268,43 @@ export function useApp() {
     }
   }
   const admin = data?.user.role === "admin";
-  const filtered = useMemo(
-    () =>
-      (data?.sales || []).filter(
-        (s) => dayOf(s.created) >= from && dayOf(s.created) <= to,
-      ),
-    [data?.sales, from, to],
-  );
+  useEffect(() => {
+    if (!data || admin) return;
+    let timer: ReturnType<typeof setTimeout>;
+    const rollover = () => {
+      const day = today();
+      if (from !== day || to !== day) {
+        setSelected(null);
+        setData((old) => (old ? { ...old, sales: [] } : old));
+        setFrom(day);
+        setTo(day);
+      }
+      clearTimeout(timer);
+      timer = setTimeout(
+        rollover,
+        Math.max(
+          1000,
+          Date.parse(day + "T00:00:00-04:00") + 86400000 - Date.now() + 100,
+        ),
+      );
+    };
+    const onVisible = () => {
+      if (!document.hidden) rollover();
+    };
+    rollover();
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [admin, !!data, from, to]);
+  const filtered = useMemo(() => {
+    const currentDay = today();
+    return (data?.sales || []).filter((s) => {
+      const day = dayOf(s.created);
+      return admin ? day >= from && day <= to : day === currentDay;
+    });
+  }, [data?.sales, from, to, admin]);
   const {
     completed,
     revenue,
@@ -278,13 +314,29 @@ export function useApp() {
     unknownWeights,
     ranking,
   } = useSummary(filtered);
-  const visibleProducts = (data?.products || []).filter((p) =>
-    (p.name + " " + p.code + " " + p.plu)
-      .toLowerCase()
-      .includes(query.toLowerCase()),
+  const visibleProducts = useMemo(() => {
+    const search = query.toLowerCase();
+    return (data?.products || []).filter((p) =>
+      (p.name + " " + p.code + " " + p.plu).toLowerCase().includes(search),
+    );
+  }, [data?.products, query]);
+  const visibleSales = useMemo(
+    () =>
+      filtered.filter(
+        (s) =>
+          salesMethod === "all" ||
+          (salesMethod === "mixed"
+            ? s.cash > 0 && s.qr > 0
+            : salesMethod === "qr"
+              ? s.qr > 0 && s.cash === 0
+              : s.cash > 0 && s.qr === 0),
+      ),
+    [filtered, salesMethod],
   );
-  const exportSales = () => exportSalesCsv(filtered);
+  const exportSales = () => exportSalesCsv(visibleSales);
   return {
+    cashOpen,
+    setCashOpen,
     page,
     setPage,
     data,
@@ -347,19 +399,26 @@ export function useApp() {
     total,
     cashCents,
     qrCents,
-    checkout,
+    checkout: () =>
+      cashOpen ? checkout() : toast.error("Abre tu caja antes de vender."),
     importFile,
     payment,
     paymentError,
     qrLocked,
     qrLoading,
-    generatePayment,
+    generatePayment: () =>
+      cashOpen
+        ? generatePayment()
+        : toast.error("Abre tu caja antes de cobrar."),
     resetCancelledPayment,
     cancelPayment,
     changePaymentMethod,
     saleId,
     admin,
     filtered,
+    visibleSales,
+    salesMethod,
+    setSalesMethod,
     completed,
     revenue,
     cashTotal,

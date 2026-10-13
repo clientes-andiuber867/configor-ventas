@@ -90,3 +90,7 @@ una instalación de un proceso con disco persistente. No trasladar este archivo 
 Nunca guardar secretos en Git, datos de pruebas en producción ni lógica bancaria
 en el navegador. La confirmación del banco y el cálculo de importes se verifican
 en el servidor aunque el cliente ya los muestre.
+
+## Caja e historial diario
+
+Ver [Caja y punto de venta](cash-register.md). El módulo `features/cash-register/` agrupa interfaz, validación HTTP y repositorio. `008_cash_register.sql` agrega turnos y limita el historial del vendedor en el RPC existente. No modifica los archivos de la pasarela.

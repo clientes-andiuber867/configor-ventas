@@ -15,6 +15,7 @@ export type Line = {
   source: "label" | "manual";
 };
 export type Sale = {
+  cash_session_id?: string | null;
   reference?: string;
   qr_id?: string;
   id: string;
@@ -53,26 +54,20 @@ export const defaultRule: BarcodeRule = {
   checksum: "none",
   codePad: 7,
 };
-export const money = (c: number) =>
-  "Bs " +
-  (c / 100).toLocaleString("es-BO", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-export const today = () =>
-  new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/La_Paz",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date());
+const boliviaMoney = new Intl.NumberFormat("es-BO", {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+export const money = (c: number) => "Bs " + boliviaMoney.format(c / 100);
+const boliviaDate = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "America/La_Paz",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+export const today = () => boliviaDate.format(new Date());
 export function dayOf(s: string) {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/La_Paz",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date(s));
+  return boliviaDate.format(new Date(s));
 }
 export function eanValid(s: string) {
   if (!/^\d+$/.test(s)) return false;

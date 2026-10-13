@@ -71,3 +71,11 @@ El adaptador local se conserva para pruebas y recuperación controlada. El respa
 ## Variables de la pasarela
 
 En Production configurar `BANECO_BASE_URL`, `BANECO_AES_KEY`, `BANECO_USER`, `BANECO_PASSWORD` y `BANECO_ACCOUNT` usando los valores privados de `.env.local`. No subir ese archivo al repositorio. Los endpoints de cobro y ventas declaran 60 segundos de duración máxima para las consultas bancarias. Los pagos y consecutivos persisten en Supabase, no en el disco efímero de Vercel.
+
+### Migración 008: caja e historial
+
+Para instalaciones nuevas, aplicar `008_cash_register.sql` tras 001–007 antes de usar el módulo de caja. En el Supabase conectado ya se aplicó el 13/10/2026; no repetir. Es aditiva y compatible con la versión anterior del cobro. No necesita variables de entorno nuevas. La interfaz sigue local hasta publicar el código. Consultar [operación de caja](cash-register.md).
+
+### Publicación de caja y optimización (008–010)
+
+Aplicar solo las migraciones pendientes, en orden: 008 agrega caja; 009 exige turno abierto; 010 agrupa consultas de caja y preparación de ventas. En el proyecto conectado ya quedaron aplicadas el 13/10/2026. No repetirlas. Mantener variables de Supabase y banco existentes. No se cambia la raíz, el framework ni la configuración de Vercel. Ver [eficiencia del servidor](server-efficiency.md).

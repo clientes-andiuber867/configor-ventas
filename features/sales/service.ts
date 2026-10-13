@@ -1,9 +1,12 @@
-import { reserveIntent, verifyIntent } from "@/features/payments/intents";
+import {
+  getIntent,
+  reserveIntent,
+  verifyIntent,
+} from "@/features/payments/intents";
 import { HttpError } from "@/features/auth/server";
 import { decodeBarcode, type Line, type Member } from "@/lib/domain";
-import { getSettings } from "@/features/workspace/repository";
+import { saleContext } from "./context";
 import { insertSale, voidSale } from "@/features/sales/repository";
-import { listProducts } from "@/features/catalog/repository";
 import { z } from "zod";
 export const saleSchema = z.object({
   id: z.string().uuid(),
@@ -25,10 +28,7 @@ export const saleSchema = z.object({
 });
 export async function prepareSale(input: unknown) {
   const d = saleSchema.parse(input);
-  const [products, settings] = await Promise.all([
-    listProducts(),
-    getSettings(),
-  ]);
+  const { products, settings } = await saleContext(d.items);
   const items: Line[] = d.items.map((line, i) => {
     const p = products.find((p) => p.code === line.code);
     if (!p) throw new HttpError(400, "Un producto ya no existe.");
@@ -54,6 +54,10 @@ export async function prepareSale(input: unknown) {
 }
 export async function registerSale(input: unknown, user: Member) {
   const { d, items, total, settings } = await prepareSale(input);
+  // Invalid direct QR submissions must not leave an unstarted reservation
+  // that would prevent closing the register.
+  if (d.qr > 0 && !(await getIntent(d.id)))
+    throw new HttpError(400, "Primero genera el QR de esta venta.");
   const intent = await reserveIntent(d, user.email);
   if (d.qr > 0) await verifyIntent(intent, true);
   const sale = await insertSale({

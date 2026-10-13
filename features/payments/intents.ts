@@ -42,6 +42,9 @@ export async function reserveIntent(
     intent = await updateStore((s) => {
       s.paymentIntents ||= [];
       const old = s.paymentIntents.find((p) => p.id === d.id);
+      if (old && s.sales.some((x) => x.id === d.id)) return old;
+      if (!s.cashSessions?.some((x) => x.cashier === cashier && !x.closed))
+        throw new HttpError(409, "Abre tu caja antes de realizar una venta.");
       if (old) return old;
       const p: PaymentIntent = {
         id: d.id,
@@ -56,15 +59,21 @@ export async function reserveIntent(
       return p;
     });
   } else {
-    intent = await rest<PaymentIntent>("rpc/configor_reserve_payment", "", {
-      method: "POST",
-      body: JSON.stringify({
-        p_id: d.id,
-        p_cashier: cashier,
-        p_fingerprint: fingerprint,
-        p_amount: d.qr,
-      }),
-    });
+    const result = await rest<PaymentIntent & { error?: string }>(
+      "rpc/configor_reserve_cash_payment",
+      "",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          p_id: d.id,
+          p_cashier: cashier,
+          p_fingerprint: fingerprint,
+          p_amount: d.qr,
+        }),
+      },
+    );
+    if (result.error) throw new HttpError(409, result.error);
+    intent = result;
   }
   if (intent.cashier !== cashier || intent.fingerprint !== fingerprint)
     throw new HttpError(
