@@ -2,7 +2,7 @@ import { patchPayments } from "@/features/payments/service";
 import { readQr, saveQr } from "@/features/payments/storage";
 
 import { authorize, checkOrigin, HttpError } from "@/features/auth/server";
-import { getSettings } from "@/lib/supabase/repository";
+import { getSettings } from "@/features/workspace/repository";
 
 export async function GET() {
   try {

@@ -1,5 +1,6 @@
 import { hashPassword, HttpError } from "@/features/auth/server";
-import { getMember, getSettings, saveMember } from "@/lib/supabase/repository";
+import { getMember, saveMember } from "@/features/users/repository";
+import { getSettings } from "@/features/workspace/repository";
 import { z } from "zod";
 export async function updateMember(input: unknown) {
   const m = z

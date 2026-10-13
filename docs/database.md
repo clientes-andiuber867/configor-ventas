@@ -4,6 +4,13 @@ Proyecto: configor-database. Migración inicial verificada: 41 productos, 2 usua
 
 ## Modelo
 
+Los repositorios se encuentran en `features/<modulo>/repository.ts`. El cliente
+de transporte y constructores REST permanecen en `lib/supabase/`.
+
+- `configor_login_attempts` (migración 007): hash del usuario, contador, nivel,
+  fecha de desbloqueo y reserva temporal exclusiva. Funciones `configor_login_claim`
+  y `configor_login_complete`, solo para service_role. No guarda contraseñas.
+
 - `configor_products`: código textual, PLU, nombre, precio y modo.
 - `configor_members`: usuario, nombre, rol, estado y hash scrypt. Conserva acceso por usuario; no usa Supabase Auth.
 - `configor_sessions`: hash del token, usuario y vencimiento; cookie HttpOnly.

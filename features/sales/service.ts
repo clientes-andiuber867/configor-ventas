@@ -1,12 +1,9 @@
 import { reserveIntent, verifyIntent } from "@/features/payments/intents";
 import { HttpError } from "@/features/auth/server";
 import { decodeBarcode, type Line, type Member } from "@/lib/domain";
-import {
-  getSettings,
-  insertSale,
-  listProducts,
-  voidSale,
-} from "@/lib/supabase/repository";
+import { getSettings } from "@/features/workspace/repository";
+import { insertSale, voidSale } from "@/features/sales/repository";
+import { listProducts } from "@/features/catalog/repository";
 import { z } from "zod";
 export const saleSchema = z.object({
   id: z.string().uuid(),

@@ -1,0 +1,60 @@
+:root {
+  --background: #f5f5f6;
+  --foreground: #1d1e22;
+  --card: #fff;
+  --card-foreground: #1d1e22;
+  --popover: #fff;
+  --popover-foreground: #1d1e22;
+  --primary: #c81925;
+  --primary-foreground: #fff;
+  --secondary: #f0f0f2;
+  --secondary-foreground: #333;
+  --muted: #f5f5f6;
+  --muted-foreground: #71717b;
+  --accent: #f5e8e9;
+  --accent-foreground: #b61521;
+  --destructive: #c81925;
+  --border: #e5e5e9;
+  --input: #dfdfe4;
+  --ring: #c81925;
+  --radius: 0.65rem;
+  --sidebar: #151518;
+  --sidebar-foreground: #bebec5;
+  --sidebar-primary: #cd202c;
+  --sidebar-primary-foreground: #fff;
+  --sidebar-accent: #362025;
+  --sidebar-accent-foreground: #ff7e86;
+  --sidebar-border: #303036;
+  --sidebar-ring: #cd202c;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --radius-lg: var(--radius);
+  --font-sans: Arial, Helvetica, sans-serif;
+}

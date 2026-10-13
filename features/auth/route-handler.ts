@@ -5,15 +5,13 @@ import {
   HttpError,
   verifyPassword,
 } from "@/features/auth/server";
-import {
-  getMember,
-  removeSession,
-  saveSession,
-} from "@/lib/supabase/repository";
+import { getMember } from "@/features/users/repository";
+import { removeSession, saveSession } from "@/features/auth/repository";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { randomBytes } from "node:crypto";
 import { z } from "zod";
+import { withLoginThrottle } from "./login-throttle";
 
 export async function GET() {
   try {
@@ -44,35 +42,40 @@ export async function POST(req: Request) {
       .object({
         action: z.literal("login"),
         username: z.string().trim().min(1).max(200),
-        password: z.string().min(8).max(128),
+        password: z.string().min(1).max(128),
         role: z.enum(["admin", "cashier"]).optional(),
       })
       .parse(b);
     const username = input.username.toLowerCase();
-    const token = randomBytes(32).toString("hex");
-    const member = await getMember(username);
-    if (
-      !member?.active ||
-      !(await verifyPassword(input.password, member.passwordHash))
-    )
-      throw new HttpError(401, "Usuario o contraseña incorrectos.");
-    if (input.role && input.role !== member.role)
-      throw new HttpError(403, "El usuario no tiene el rol seleccionado.");
-    await saveSession({
-      tokenHash: digest(token),
-      email: username,
-      expires: Date.now() + 12 * 60 * 60 * 1000,
+    return await withLoginThrottle(username, async () => {
+      const token = randomBytes(32).toString("hex");
+      const member = await getMember(username);
+      if (
+        !member?.active ||
+        !(await verifyPassword(input.password, member.passwordHash))
+      )
+        return Response.json(
+          { error: "Usuario o contraseña incorrectos." },
+          { status: 401 },
+        );
+      if (input.role && input.role !== member.role)
+        throw new HttpError(403, "El usuario no tiene el rol seleccionado.");
+      await saveSession({
+        tokenHash: digest(token),
+        email: username,
+        expires: Date.now() + 12 * 60 * 60 * 1000,
+      });
+      const { passwordHash, ...user } = member;
+      const r = NextResponse.json({ user });
+      r.cookies.set("configor_session", token, {
+        httpOnly: true,
+        sameSite: "strict",
+        secure: new URL(req.url).protocol === "https:",
+        path: "/",
+        maxAge: 12 * 60 * 60,
+      });
+      return r;
     });
-    const { passwordHash, ...user } = member;
-    const r = NextResponse.json({ user });
-    r.cookies.set("configor_session", token, {
-      httpOnly: true,
-      sameSite: "strict",
-      secure: new URL(req.url).protocol === "https:",
-      path: "/",
-      maxAge: 12 * 60 * 60,
-    });
-    return r;
   } catch (e) {
     return Response.json(
       {

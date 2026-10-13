@@ -1,0 +1,182 @@
+/* One ticket component, shared by the preview and isolated print portal. */
+.ticket-paper-control {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+}
+.ticket-paper-control select {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 8px;
+  background: white;
+}
+.ticket-preview {
+  background: #f3f3f1;
+  border: 1px solid #e8e8e5;
+  border-radius: 12px;
+  padding: 18px 8px;
+  overflow: auto;
+}
+.ticket-preview > div {
+  max-width: 100%;
+  padding: 3mm;
+  margin: auto;
+  background: white;
+  box-shadow: 0 3px 12px #0000000d;
+}
+.thermal-ticket {
+  color: #111;
+  background: white;
+  font-family: Arial, sans-serif;
+  font-size: 11px;
+  line-height: 1.35;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+  text-align: left;
+}
+.thermal-ticket p,
+.thermal-ticket h2 {
+  margin: 0;
+}
+.ticket-brand {
+  text-align: center;
+  padding-bottom: 3mm;
+}
+.ticket-brand h2 {
+  font-size: 23px;
+  font-weight: 900;
+  line-height: 1.1;
+  letter-spacing: 1px;
+}
+.ticket-brand > span {
+  font-size: 10px;
+  letter-spacing: 4px;
+}
+.ticket-heading {
+  border-top: 1px solid #111;
+  padding-top: 2mm;
+  text-align: center;
+  display: grid;
+  gap: 1mm;
+}
+.ticket-heading b {
+  font-size: 9px;
+  letter-spacing: 0.5px;
+}
+.ticket-heading strong {
+  font-size: 15px;
+}
+.ticket-meta {
+  text-align: center;
+  font-size: 10px;
+  margin: 2mm 0 3mm;
+}
+.ticket-columns {
+  display: flex;
+  justify-content: space-between;
+  border-top: 1px dashed #888;
+  border-bottom: 1px dashed #888;
+  padding: 1.5mm 0;
+  font-size: 9px;
+  font-weight: 700;
+}
+.ticket-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2mm;
+  padding: 2mm 0;
+  break-inside: avoid;
+}
+.ticket-item b {
+  font-size: 10px;
+}
+.ticket-item small {
+  display: block;
+  font-size: 9px;
+  margin-top: 0.5mm;
+}
+.ticket-item > span {
+  white-space: nowrap;
+  font-weight: 700;
+}
+.ticket-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 2mm;
+  border-top: 1px solid #111;
+  padding: 2mm 0;
+  break-inside: avoid;
+}
+.ticket-total strong {
+  font-size: 16px;
+  white-space: nowrap;
+}
+.ticket-payments p {
+  display: flex;
+  justify-content: space-between;
+  gap: 2mm;
+  padding: 0.5mm 0;
+}
+.ticket-footer {
+  padding: 2mm 0 0;
+  color: #111;
+  letter-spacing: 0;
+  justify-content: normal;
+  border-top: 1px dashed #888;
+  margin-top: 3mm;
+  padding-top: 2mm;
+  display: grid;
+  gap: 0.5mm;
+  text-align: center;
+  break-inside: avoid;
+}
+.ticket-footer span,
+.ticket-footer small {
+  font-size: 9px;
+}
+.ticket-void {
+  border: 1px solid black;
+  padding: 2mm;
+  font-weight: bold;
+}
+#receipt-print-root {
+  position: fixed;
+  left: -10000px;
+  top: 0;
+  visibility: hidden;
+  padding: 3mm;
+  box-sizing: border-box;
+}
+@media print {
+  html,
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    background: white !important;
+  }
+  body:has(#receipt-print-root) > :not(#receipt-print-root) {
+    display: none !important;
+  }
+  #receipt-print-root {
+    display: block !important;
+    position: static !important;
+    visibility: visible !important;
+    max-width: 100%;
+    margin: 0;
+    transform: none !important;
+  }
+  #receipt-print-root * {
+    visibility: visible !important;
+    color: black !important;
+    box-shadow: none !important;
+  }
+  @page {
+    margin: 0;
+  }
+}

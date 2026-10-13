@@ -1,9 +1,9 @@
 import { createServer } from "node:http";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile, stat } from "node:fs/promises";
 import path from "node:path";
-import { randomBytes, scryptSync } from "node:crypto";
+import { createHash, randomBytes, scryptSync } from "node:crypto";
 const port = 3006,
   base = "http://127.0.0.1:" + port;
 const directory = path.resolve("tests/.local-data/" + crypto.randomUUID());
@@ -143,6 +143,89 @@ try {
   assert(up, output);
   await request("/api/auth", null, "", 401);
   await request("/api/data", null, "", 401);
+  const attemptFile = path.join(directory, "login-attempts.json");
+  const adminKey = createHash("sha256").update("admin").digest("hex");
+  const login = (value, role = "admin", username = "admin") => ({
+    action: "login",
+    username,
+    password: value,
+    role,
+  });
+  // Advance only the isolated fixture's persisted deadline, never real time/data.
+  async function expireTestLock() {
+    const records = JSON.parse(await readFile(attemptFile, "utf8"));
+    records[adminKey].blockedUntil = Date.now() - 1;
+    await writeFile(attemptFile, JSON.stringify(records));
+  }
+  for (const minutes of [5, 15, 30, 60, 120, 240, 480, 960, 1440, 1440]) {
+    const first = await request("/api/auth", login("x"), "", 401);
+    assert.equal(first.data.attemptsRemaining, 2);
+    const second = await request(
+      "/api/auth",
+      login("incorrecta", "cashier", " ADMIN "),
+      "",
+      401,
+    );
+    assert.equal(second.data.attemptsRemaining, 1);
+    const third = await request("/api/auth", login("incorrecta"), "", 429);
+    assert(
+      third.data.retryAfter <= minutes * 60 &&
+        third.data.retryAfter >= minutes * 60 - 2,
+    );
+    const blocked = await request("/api/auth", login(password), "", 429);
+    assert.equal(blocked.data.blockedUntil, third.data.blockedUntil);
+    assert(
+      !blocked.cookie,
+      "No session while blocked, even with correct password",
+    );
+    const stored = JSON.parse(await readFile(attemptFile, "utf8"));
+    assert.equal(stored[adminKey].blockedUntil, third.data.blockedUntil);
+    assert(!JSON.stringify(stored).includes(password));
+    await expireTestLock();
+  }
+  const unlocked = await request("/api/auth", login(password));
+  await request("/api/auth", { action: "logout" }, unlocked.cookie);
+  assert.equal(
+    JSON.parse(await readFile(attemptFile, "utf8"))[adminKey],
+    undefined,
+  );
+  const burst = await Promise.all(
+    Array.from({ length: 6 }, () =>
+      fetch(base + "/api/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Origin: base },
+        body: JSON.stringify(login("incorrecta")),
+      }),
+    ),
+  );
+  assert.deepEqual(
+    burst.map((r) => r.status).sort(),
+    [401, 401, 429, 429, 429, 429],
+  );
+  const afterReset = await request("/api/auth", login(password), "", 429);
+  assert(
+    afterReset.data.retryAfter <= 300 && afterReset.data.retryAfter >= 298,
+  );
+  await request(
+    "/api/auth",
+    login("incorrecta", "admin", "another-user"),
+    "",
+    401,
+  );
+  await expireTestLock();
+  const resetSession = await request("/api/auth", login(password));
+  await request("/api/auth", { action: "logout" }, resetSession.cookie);
+  const beforeCleanLogin = await stat(attemptFile);
+  const cleanSession = await request("/api/auth", login(password));
+  assert.equal(
+    (await stat(attemptFile)).mtimeMs,
+    beforeCleanLogin.mtimeMs,
+    "Clean successful login must not rewrite the lockout file",
+  );
+  await request("/api/auth", { action: "logout" }, cleanSession.cookie);
+  console.log(
+    "PASS: three failures, normalized account, progressive 5/15/30/60-minute locks through 24h cap, persistence, correct-password blocking, concurrency, account isolation and successful reset.",
+  );
   await request(
     "/api/auth",
     {

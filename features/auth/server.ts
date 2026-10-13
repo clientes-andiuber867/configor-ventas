@@ -1,18 +1,13 @@
 import type { Member } from "@/lib/domain";
 import { cloudEnabled, rest } from "@/lib/supabase/client";
-import { getMember, getSession } from "@/lib/supabase/repository";
+import { getMember } from "@/features/users/repository";
+import { getSession } from "@/features/auth/repository";
 import { cookies } from "next/headers";
 import { createHash, randomBytes, scrypt, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
 import "server-only";
-export class HttpError extends Error {
-  constructor(
-    public status: number,
-    message: string,
-  ) {
-    super(message);
-  }
-}
+import { HttpError } from "@/lib/http/errors";
+export { HttpError } from "@/lib/http/errors";
 const derive = promisify(scrypt);
 export const digest = (value: string) =>
   createHash("sha256").update(value).digest("hex");

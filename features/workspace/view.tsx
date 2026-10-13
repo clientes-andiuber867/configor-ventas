@@ -19,6 +19,8 @@ import {
   Database,
   Download,
   LayoutDashboard,
+  LogOut,
+  LoaderCircle,
   Plus,
   QrCode,
   ReceiptText,
@@ -53,7 +55,13 @@ const sections = [
   ["Usuarios", Users],
   ["Configuración de pagos", QrCode],
 ] as const;
-export default function Workspace() {
+export default function Workspace({
+  onLogout,
+  loggingOut,
+}: {
+  onLogout: () => Promise<void>;
+  loggingOut: boolean;
+}) {
   const s = useApp();
   const [period, setPeriod] = useState("today");
   return (
@@ -95,14 +103,34 @@ export default function Workspace() {
         <header className="topbar">
           <div>
             <SidebarTrigger />
-            <span>
+            <span className="workspace-breadcrumb">
               CONFIGOR <i>/</i> {s.page}
             </span>
           </div>
-          <div className="location">
-            <ShieldCheck size={16} /> Casa central · Bolivia{" "}
-            <button aria-label="Actualizar datos" onClick={() => s.load()}>
-              <RefreshCw size={16} />
+          <div className="topbar-actions">
+            <div className="location">
+              <ShieldCheck size={16} /> Casa central · Bolivia{" "}
+              <button aria-label="Actualizar datos" onClick={() => s.load()}>
+                <RefreshCw size={16} />
+              </button>
+            </div>
+            <button
+              type="button"
+              className="logout-button"
+              onClick={onLogout}
+              disabled={loggingOut}
+              aria-busy={loggingOut}
+            >
+              {loggingOut ? (
+                <LoaderCircle
+                  size={17}
+                  className="animate-spin"
+                  aria-hidden="true"
+                />
+              ) : (
+                <LogOut size={17} aria-hidden="true" />
+              )}
+              <span>{loggingOut ? "Cerrando…" : "Cerrar sesión"}</span>
             </button>
           </div>
         </header>

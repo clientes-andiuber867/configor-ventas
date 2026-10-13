@@ -10,7 +10,9 @@ Variables de servidor: `CONFIGOR_STORAGE=supabase`, `SUPABASE_URL`, `SUPABASE_SE
 
 ## Hosting
 
-La aplicación usa rutas Node.js de Next.js. El código está preparado para Vercel; el despliegue se realiza desde su panel.
+La aplicación usa rutas Node.js de Next.js. El repositorio conectado dispara el
+despliegue al hacer push a la rama de producción. Se conservan la raíz `./`,
+las rutas `app/api`, el lockfile y `vercel.json` del proyecto existente.
 
 1. Importar el repositorio en Vercel con framework **Next.js** y Root Directory **./**.
 2. Usar Node.js **22.x**, instalación `npm ci` y build `npm run build`. Mantener Output Directory automático.
@@ -30,6 +32,37 @@ La aplicación usa rutas Node.js de Next.js. El código está preparado para Ver
 Cloudflare requiere adaptar y verificar Next.js mediante un adaptador compatible; no basta una exportación estática. Todavía no se ha validado esta plataforma.
 
 ## Operación
+
+### Bloqueo de acceso local y en Vercel
+
+Cada usuario dispone de 3 intentos de contraseña antes de un bloqueo. Las esperas
+sucesivas son 5, 15, 30 y 60 minutos, y después se duplican hasta un máximo de
+24 horas. Una contraseña correcta no permite entrar durante un bloqueo activo.
+Al vencer la espera se habilitan otros 3 intentos; un acceso correcto reinicia la
+progresión. Elegir un rol equivocado no cuenta como fallo de contraseña.
+
+Con `CONFIGOR_STORAGE=supabase`, el servidor usa la tabla y funciones de
+`007_login_attempts.sql`; no escribe archivos para controlar el login. La reserva
+por intento evita que distintas instancias eludan el contador. RLS y permisos
+restringen las funciones a la clave de servidor. La reserva vence en 60 segundos
+si un proceso desaparece. No se necesita Redis ni variables nuevas.
+
+Con `CONFIGOR_STORAGE=local`, usa `data/login-attempts.json` (o `CONFIGOR_DATA_DIR`),
+excluido de Git, con hashes de usuario y sin contraseñas. Este adaptador es para
+un solo proceso con disco persistente. Ambos conservan bloqueos al recargar o
+cambiar de navegador; no hay sondeo periódico desde el cliente.
+
+### Actualizar el proyecto conectado
+
+1. Aplicar únicamente la migración 007 antes del código nuevo. Es aditiva y ya se
+   aplicó a configor-database en esta actualización; no modifica ventas ni usuarios.
+2. Ejecutar `npm ci` y `npm run verify` con Node 22.x.
+3. Hacer push a `main`. Mantener las variables existentes de Supabase y del banco.
+4. Esperar estado Ready en Vercel y comprobar la página y el acceso. Un build
+   correcto por sí solo no confirma credenciales o conectividad en producción.
+5. Si hay que revertir el código, usar el despliegue anterior. La tabla añadida
+   puede permanecer: no interfiere con el código anterior. No borrar contadores
+   como parte de un rollback rutinario.
 
 Supabase es el origen activo. Un fallo de red no se muestra como cobro guardado. Reintentar conserva el UUID para evitar duplicar una venta cuya respuesta se perdió. El QR consulta al banco y exige confirmación bancaria para registrar la venta. Antes de publicar esta versión aplica las migraciones 004, 005 y 006 y configura las variables BANECO_*; consulta payments.md.
 

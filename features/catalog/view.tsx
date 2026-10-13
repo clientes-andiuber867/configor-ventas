@@ -1,7 +1,8 @@
 "use client";
 import { Choice, ProductTable } from "@/components/shared/tables";
 import { Switch } from "@/components/ui/switch";
-import { download, type AppState } from "@/features/workspace/use-workspace";
+import type { AppState } from "@/features/workspace/use-workspace";
+import { download } from "@/lib/download";
 import { decodeBarcode, money, referenceProducts } from "@/lib/domain";
 import { ChevronRight, Database, Download, Search, Upload } from "lucide-react";
 export function DatabaseView({ s }: { s: AppState }) {

@@ -1,5 +1,6 @@
 import { HttpError } from "@/features/auth/server";
-import { importProducts, saveSetting } from "@/lib/supabase/repository";
+import { importProducts } from "@/features/catalog/repository";
+import { saveSetting } from "@/features/workspace/repository";
 import { z } from "zod";
 const productSchema = z.object({
   code: z.string().regex(/^\d{4,16}$/),

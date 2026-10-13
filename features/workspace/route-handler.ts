@@ -11,30 +11,13 @@ import { cancelSale, registerSale } from "@/features/sales/service";
 import { updateMember } from "@/features/users/service";
 import { today } from "@/lib/domain";
 import { cloudEnabled, rest } from "@/lib/supabase/client";
-import {
-  getSettings,
-  listMembers,
-  listProducts,
-  listSales,
-} from "@/lib/supabase/repository";
+import { getSettings } from "@/features/workspace/repository";
+import { listMembers } from "@/features/users/repository";
+import { listProducts } from "@/features/catalog/repository";
+import { listSales } from "@/features/sales/repository";
 import { cookies } from "next/headers";
 import { z } from "zod";
-export function apiError(e: unknown) {
-  return Response.json(
-    {
-      error:
-        e instanceof z.ZodError
-          ? "Datos inválidos. Revisa los campos."
-          : e instanceof Error
-            ? e.message
-            : "No se pudo completar la operación.",
-    },
-    {
-      status:
-        e instanceof HttpError ? e.status : e instanceof z.ZodError ? 400 : 500,
-    },
-  );
-}
+import { apiError } from "@/lib/http/errors";
 export async function GET(req: Request) {
   try {
     const params = new URL(req.url).searchParams;
