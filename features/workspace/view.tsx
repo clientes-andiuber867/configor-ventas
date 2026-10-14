@@ -28,9 +28,10 @@ import {
   ScanBarcode,
   Users,
   Store,
+  Calculator,
 } from "lucide-react";
 import dynamic from "next/dynamic";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Toaster } from "sonner";
 import { Modals } from "./dialogs";
 import { useApp, type AppState } from "./use-workspace";
@@ -51,12 +52,16 @@ const UsersView = dynamic(() =>
 const PaymentsView = dynamic(() =>
   import("@/features/payments/view").then((m) => m.PaymentsView),
 );
+const CostsView = dynamic(() =>
+  import("@/features/costs/view").then((m) => m.CostsView),
+);
 const sections = [
   ["Resumen", LayoutDashboard],
   ["Punto de venta", ScanBarcode],
   ["Ventas", ReceiptText],
   ["Ventas mayoristas", Store],
   ["Base de datos", Database],
+  ["Costos por pedido", Calculator],
   ["Usuarios", Users],
   ["Configuración de pagos", QrCode],
 ] as const;
@@ -68,6 +73,10 @@ export default function Workspace({
   loggingOut: boolean;
 }) {
   const s = useApp();
+  const [costsVisited, setCostsVisited] = useState(false);
+  useEffect(() => {
+    if (s.page === "Costos por pedido") setCostsVisited(true);
+  }, [s.page]);
   const [period, setPeriod] = useState("today");
   return (
     <SidebarProvider className="configor-shell">
@@ -186,6 +195,8 @@ export default function Workspace({
                         "Base de datos":
                           "Los productos de tu balanza, conectados con tu caja.",
                         Usuarios: "Cada persona, con el acceso que necesita.",
+                        "Costos por pedido":
+                          "Calcula los detalles que acompañan cada entrega.",
                         "Configuración de pagos":
                           "Tu QR y tus datos, listos para cada cobro.",
                       } as any
@@ -194,14 +205,16 @@ export default function Workspace({
                 </p>
               )}
             </div>
-            {s.page !== "Punto de venta" && s.page !== "Ventas mayoristas" && (
-              <button
-                className="primary"
-                onClick={() => s.setPage("Punto de venta")}
-              >
-                <Plus size={18} /> Nueva venta
-              </button>
-            )}
+            {s.page !== "Costos por pedido" &&
+              s.page !== "Punto de venta" &&
+              s.page !== "Ventas mayoristas" && (
+                <button
+                  className="primary"
+                  onClick={() => s.setPage("Punto de venta")}
+                >
+                  <Plus size={18} /> Nueva venta
+                </button>
+              )}
           </div>
           {s.error && (
             <div className="error-banner">
@@ -289,6 +302,11 @@ export default function Workspace({
               )}
               {s.page === "Base de datos" && s.admin && <DatabaseView s={s} />}{" "}
               {s.page === "Usuarios" && s.admin && <UsersView s={s} />}{" "}
+              {s.admin && (costsVisited || s.page === "Costos por pedido") && (
+                <div hidden={s.page !== "Costos por pedido"}>
+                  <CostsView />
+                </div>
+              )}
               {s.page === "Configuración de pagos" && s.admin && (
                 <PaymentsView s={s} />
               )}
