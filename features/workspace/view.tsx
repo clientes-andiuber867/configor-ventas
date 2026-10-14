@@ -27,6 +27,7 @@ import {
   RefreshCw,
   ScanBarcode,
   Users,
+  Store,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useState } from "react";
@@ -38,6 +39,9 @@ const Dashboard = dynamic(() =>
   import("@/features/dashboard/view").then((m) => m.Dashboard),
 );
 const POS = dynamic(() => import("@/features/pos/view").then((m) => m.POS));
+const WholesaleView = dynamic(() =>
+  import("@/features/wholesale/view").then((m) => m.WholesaleView),
+);
 const DatabaseView = dynamic(() =>
   import("@/features/catalog/view").then((m) => m.DatabaseView),
 );
@@ -51,6 +55,7 @@ const sections = [
   ["Resumen", LayoutDashboard],
   ["Punto de venta", ScanBarcode],
   ["Ventas", ReceiptText],
+  ["Ventas mayoristas", Store],
   ["Base de datos", Database],
   ["Usuarios", Users],
   ["Configuración de pagos", QrCode],
@@ -149,35 +154,47 @@ export default function Workspace({
           </div>
         </header>
         <main>
-          <div className="heading">
+          <div
+            className={
+              s.page === "Ventas mayoristas"
+                ? "heading wholesale-heading"
+                : "heading"
+            }
+          >
             <div>
-              <p className="eyebrow">
-                {s.page === "Punto de venta"
-                  ? "CAJA · CONFIGOR CARNES"
-                  : "CONTROL DE TU NEGOCIO"}
-              </p>
+              {s.page !== "Ventas mayoristas" && (
+                <p className="eyebrow">
+                  {s.page === "Punto de venta"
+                    ? "CAJA · CONFIGOR CARNES"
+                    : "CONTROL DE TU NEGOCIO"}
+                </p>
+              )}
               <h1>
                 {s.page === "Resumen" ? "Tu negocio, en un vistazo." : s.page}
               </h1>
-              <p className="muted">
-                {
-                  (
-                    {
-                      Resumen: "Cada corte cuenta. Cada venta también.",
-                      "Punto de venta":
-                        "Escanea, revisa y cobra. Así de simple.",
-                      Ventas: "Cada transacción, con todos sus detalles.",
-                      "Base de datos":
-                        "Los productos de tu balanza, conectados con tu caja.",
-                      Usuarios: "Cada persona, con el acceso que necesita.",
-                      "Configuración de pagos":
-                        "Tu QR y tus datos, listos para cada cobro.",
-                    } as any
-                  )[s.page]
-                }
-              </p>
+              {s.page !== "Ventas mayoristas" && (
+                <p className="muted">
+                  {
+                    (
+                      {
+                        Resumen: "Cada corte cuenta. Cada venta también.",
+                        "Punto de venta":
+                          "Escanea, revisa y cobra. Así de simple.",
+                        Ventas: "Cada transacción, con todos sus detalles.",
+                        "Ventas mayoristas":
+                          "Una atención cercana. Un historial para cada cliente.",
+                        "Base de datos":
+                          "Los productos de tu balanza, conectados con tu caja.",
+                        Usuarios: "Cada persona, con el acceso que necesita.",
+                        "Configuración de pagos":
+                          "Tu QR y tus datos, listos para cada cobro.",
+                      } as any
+                    )[s.page]
+                  }
+                </p>
+              )}
             </div>
-            {s.page !== "Punto de venta" && (
+            {s.page !== "Punto de venta" && s.page !== "Ventas mayoristas" && (
               <button
                 className="primary"
                 onClick={() => s.setPage("Punto de venta")}
@@ -215,6 +232,7 @@ export default function Workspace({
               )}
               {s.page === "Resumen" && s.admin && <Dashboard s={s} />}{" "}
               {s.page === "Punto de venta" && <POS s={s} />}{" "}
+              {s.page === "Ventas mayoristas" && <WholesaleView s={s} />}
               {s.page === "Ventas" && (
                 <section className="panel">
                   <div className="panel-title">
@@ -223,26 +241,48 @@ export default function Workspace({
                       <Download size={16} /> Exportar CSV
                     </button>
                   </div>
-                  <div
-                    className="sales-method-filter"
-                    role="group"
-                    aria-label="Filtrar por forma de pago"
-                  >
-                    {[
-                      ["all", "Todos"],
-                      ["cash", "Efectivo"],
-                      ["qr", "QR"],
-                      ["mixed", "Mixto"],
-                    ].map(([value, label]) => (
-                      <button
-                        type="button"
-                        key={value}
-                        aria-pressed={s.salesMethod === value}
-                        onClick={() => s.setSalesMethod(value)}
-                      >
-                        {label}
-                      </button>
-                    ))}
+                  <div className="sales-filters">
+                    <div
+                      className="sales-method-filter"
+                      role="group"
+                      aria-label="Filtrar por tipo de venta"
+                    >
+                      {[
+                        ["all", "Todas"],
+                        ["retail", "Al público"],
+                        ["wholesale", "Mayoristas"],
+                      ].map(([value, label]) => (
+                        <button
+                          type="button"
+                          key={value}
+                          aria-pressed={s.salesType === value}
+                          onClick={() => s.setSalesType(value)}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                    <div
+                      className="sales-method-filter"
+                      role="group"
+                      aria-label="Filtrar por forma de pago"
+                    >
+                      {[
+                        ["all", "Todos"],
+                        ["cash", "Efectivo"],
+                        ["qr", "QR"],
+                        ["mixed", "Mixto"],
+                      ].map(([value, label]) => (
+                        <button
+                          type="button"
+                          key={value}
+                          aria-pressed={s.salesMethod === value}
+                          onClick={() => s.setSalesMethod(value)}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                   <SaleTable sales={s.visibleSales} onSelect={s.setSelected} />
                 </section>
@@ -271,7 +311,9 @@ function Navigation({ s }: { s: AppState }) {
       {sections
         .filter(
           ([n]) =>
-            s.admin || ["Punto de venta", "Ventas"].includes(n) || !s.data,
+            s.admin ||
+            ["Punto de venta", "Ventas", "Ventas mayoristas"].includes(n) ||
+            !s.data,
         )
         .map(([name, Icon]) => (
           <SidebarMenuItem key={name}>

@@ -40,11 +40,13 @@ export function CashRegister({
   blocked,
   admin,
   onAvailability,
+  compact = false,
 }: {
   sales: Sale[];
   blocked: boolean;
   admin: boolean;
   onAvailability: (open: boolean) => void;
+  compact?: boolean;
 }) {
   const [state, setState] = useState<CashState | null>(null);
   const [mode, setMode] = useState<"open" | "close" | null>(null);
@@ -175,14 +177,20 @@ export function CashRegister({
             {!state
               ? "Control de caja"
               : active
-                ? "Tu caja está abierta"
-                : "Abre tu caja"}
+                ? compact
+                  ? "Caja abierta"
+                  : "Tu caja está abierta"
+                : compact
+                  ? "Caja cerrada"
+                  : "Abre tu caja"}
           </strong>
-          <small>
-            {active
-              ? "Desde " + date(active.opened)
-              : "Registra tu fondo inicial para controlar el efectivo del turno."}
-          </small>
+          {(!compact || active) && (
+            <small>
+              {active
+                ? "Desde " + date(active.opened)
+                : "Registra tu fondo inicial para controlar el efectivo del turno."}
+            </small>
+          )}
         </div>
         {active && (
           <div className="cash-balance">

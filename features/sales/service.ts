@@ -8,7 +8,9 @@ import { decodeBarcode, type Line, type Member } from "@/lib/domain";
 import { saleContext } from "./context";
 import { insertSale, voidSale } from "@/features/sales/repository";
 import { z } from "zod";
+import { findCustomer } from "@/features/wholesale/repository";
 export const saleSchema = z.object({
+  wholesale_customer_id: z.string().uuid().optional(),
   id: z.string().uuid(),
   items: z
     .array(
@@ -28,6 +30,15 @@ export const saleSchema = z.object({
 });
 export async function prepareSale(input: unknown) {
   const d = saleSchema.parse(input);
+  if (d.wholesale_customer_id) {
+    if (d.items.some((line) => line.source !== "label"))
+      throw new HttpError(
+        400,
+        "Escanea una etiqueta con el importe de la balanza para la venta mayorista.",
+      );
+    if (!(await findCustomer(d.wholesale_customer_id)))
+      throw new HttpError(404, "Cliente mayorista no encontrado.");
+  }
   const { products, settings } = await saleContext(d.items);
   const items: Line[] = d.items.map((line, i) => {
     const p = products.find((p) => p.code === line.code);
@@ -61,6 +72,7 @@ export async function registerSale(input: unknown, user: Member) {
   const intent = await reserveIntent(d, user.email);
   if (d.qr > 0) await verifyIntent(intent, true);
   const sale = await insertSale({
+    wholesale_customer_id: d.wholesale_customer_id,
     id: d.id,
     qr_id: intent.qrId || undefined,
     created: new Date().toISOString(),
@@ -77,6 +89,7 @@ export async function registerSale(input: unknown, user: Member) {
     sale.total !== total ||
     sale.cash !== d.cash ||
     sale.qr !== d.qr ||
+    (sale.wholesale_customer_id || undefined) !== d.wholesale_customer_id ||
     sale.items.length !== items.length ||
     sale.items.some((item, i) =>
       ["code", "barcode", "grams", "amount", "source"].some(

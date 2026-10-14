@@ -44,8 +44,14 @@ export async function insertSale(sale: Sale): Promise<Sale> {
       if (old) return old;
       if (!s.cashSessions?.some((x) => x.cashier === sale.cashier && !x.closed))
         throw new HttpError(409, "Abre tu caja antes de realizar una venta.");
+      const customer = sale.wholesale_customer_id
+        ? s.wholesaleCustomers?.find((c) => c.id === sale.wholesale_customer_id)
+        : undefined;
+      if (sale.wholesale_customer_id && !customer)
+        throw new HttpError(404, "Cliente mayorista no encontrado.");
       sale = {
         ...sale,
+        wholesale_customer_name: customer?.name,
         reference: nextSaleReference(s.sales),
         cash_session_id:
           s.cashSessions?.find((x) => x.cashier === sale.cashier && !x.closed)

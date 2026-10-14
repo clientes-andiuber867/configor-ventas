@@ -31,11 +31,26 @@ export async function getIntent(id: string) {
   )[0];
 }
 export async function reserveIntent(
-  d: { id: string; items: unknown[]; cash: number; qr: number },
+  d: {
+    id: string;
+    items: unknown[];
+    cash: number;
+    qr: number;
+    wholesale_customer_id?: string;
+  },
   cashier: string,
 ) {
   const fingerprint = createHash("sha256")
-    .update(JSON.stringify({ items: d.items, cash: d.cash, qr: d.qr }))
+    .update(
+      JSON.stringify({
+        items: d.items,
+        cash: d.cash,
+        qr: d.qr,
+        ...(d.wholesale_customer_id
+          ? { wholesale_customer_id: d.wholesale_customer_id }
+          : {}),
+      }),
+    )
     .digest("hex");
   let intent: PaymentIntent;
   if (!cloudEnabled()) {

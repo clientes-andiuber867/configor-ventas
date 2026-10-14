@@ -16,6 +16,7 @@ export function POS({ s }: { s: AppState }) {
   return (
     <div className="pos-view">
       <CashRegister
+        compact={!!s.wholesaleCustomer}
         sales={s.data!.sales}
         blocked={!!s.cart.length || s.qrLocked || s.busy}
         admin={s.admin}
@@ -68,11 +69,13 @@ export function POS({ s }: { s: AppState }) {
                 Añadir
               </button>
             </form>
-            <p className="hint">
-              {s.cashOpen
-                ? "Lee las etiquetas una tras otra. Cada producto se añade automáticamente y puedes cobrar al terminar."
-                : "Para escanear productos y realizar ventas, primero abre tu caja e indica el efectivo inicial."}
-            </p>
+            {!s.wholesaleCustomer && (
+              <p className="hint">
+                {s.cashOpen
+                  ? "Lee las etiquetas una tras otra. Cada producto se añade automáticamente y puedes cobrar al terminar."
+                  : "Para escanear productos y realizar ventas, primero abre tu caja e indica el efectivo inicial."}
+              </p>
+            )}
           </section>
           <section className="panel cart-panel">
             <div className="panel-title">
@@ -129,8 +132,14 @@ export function POS({ s }: { s: AppState }) {
                 <div>
                   <ScanBarcode size={48} strokeWidth={1} />
                 </div>
-                <h2>Lista para la primera etiqueta</h2>
-                <p>Los productos que escanees se añadirán aquí.</p>
+                <h2>
+                  {s.wholesaleCustomer
+                    ? "Escanea tu primera etiqueta"
+                    : "Lista para la primera etiqueta"}
+                </h2>
+                {!s.wholesaleCustomer && (
+                  <p>Los productos que escanees se añadirán aquí.</p>
+                )}
                 {!s.data?.products.length && s.admin && (
                   <button
                     className="text-button"
@@ -144,8 +153,8 @@ export function POS({ s }: { s: AppState }) {
           </section>
         </div>
         <aside className="panel checkout-summary">
-          <p className="eyebrow">RESUMEN DE VENTA</p>
-          <h2>Tu venta, lista.</h2>
+          {!s.wholesaleCustomer && <p className="eyebrow">RESUMEN DE VENTA</p>}
+          <h2>{s.wholesaleCustomer ? "Resumen" : "Tu venta, lista."}</h2>
           <div className="payment-row">
             <span>Artículos</span>
             <b>{s.cart.length}</b>
@@ -193,10 +202,12 @@ export function POS({ s }: { s: AppState }) {
               ? "Cancela el cobro pendiente para añadir o quitar productos."
               : "Efectivo, QR o pago mixto."}
           </p>
-          <div className="notice">
-            <ShieldCheck size={18} />
-            <span>La venta se guarda al confirmar el cobro.</span>
-          </div>
+          {!s.wholesaleCustomer && (
+            <div className="notice">
+              <ShieldCheck size={18} />
+              <span>La venta se guarda al confirmar el cobro.</span>
+            </div>
+          )}
         </aside>
       </div>
     </div>

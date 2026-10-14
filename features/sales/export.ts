@@ -11,6 +11,7 @@ export function exportSalesCsv(filtered: Sale[]) {
       "Efectivo Bs",
       "QR Bs",
       "Estado",
+      "Cliente mayorista",
     ],
     ...filtered.map((s) => [
       s.reference || s.id,
@@ -20,6 +21,7 @@ export function exportSalesCsv(filtered: Sale[]) {
       (s.cash / 100).toFixed(2),
       (s.qr / 100).toFixed(2),
       s.status,
+      s.wholesale_customer_name || "",
     ]),
   ];
   download(

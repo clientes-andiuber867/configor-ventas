@@ -5,6 +5,7 @@ import type { Member, Product, Sale, BarcodeRule } from "./domain";
 import { defaultRule } from "./domain";
 export type LocalMember = Member & { passwordHash: string };
 export type Store = {
+  wholesaleCustomers?: import("../features/wholesale/types").WholesaleCustomer[];
   cashSessions?: import("../features/cash-register/types").CashSession[];
   paymentIntents?: import("../features/payments/intents").PaymentIntent[];
   paymentSequence?: number;

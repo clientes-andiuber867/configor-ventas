@@ -11,7 +11,10 @@ import { toast } from "sonner";
 import type { Line, Sale } from "@/lib/domain";
 import type { Data } from "@/features/workspace/types";
 import { api } from "@/features/workspace/api";
+import type { WholesaleCustomer } from "@/features/wholesale/types";
 type Context = {
+  wholesaleCustomer: WholesaleCustomer | null;
+  restoreWholesaleCustomer: (customer: WholesaleCustomer) => void;
   locked: RefObject<boolean>;
   data: Data | null;
   setData: Dispatch<SetStateAction<Data | null>>;
@@ -22,6 +25,8 @@ type Context = {
   setSelected: Dispatch<SetStateAction<Sale | null>>;
 };
 export function usePaymentFlow({
+  wholesaleCustomer,
+  restoreWholesaleCustomer,
   data,
   setData,
   cart,
@@ -56,6 +61,7 @@ export function usePaymentFlow({
       const saved = sessionStorage.getItem("configor-pending-payment");
       if (saved) {
         const d = JSON.parse(saved);
+        if (d.wholesaleCustomer) restoreWholesaleCustomer(d.wholesaleCustomer);
         setCart(d.cart);
         setSaleId(d.saleId);
         setMethod(d.method);
@@ -90,7 +96,7 @@ export function usePaymentFlow({
     try {
       sessionStorage.setItem(
         "configor-pending-payment",
-        JSON.stringify({ cart, saleId, method, cashInput }),
+        JSON.stringify({ cart, saleId, method, cashInput, wholesaleCustomer }),
       );
     } catch {
       /* Continue if browser storage is unavailable. */
@@ -101,6 +107,7 @@ export function usePaymentFlow({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           id: saleId,
+          wholesale_customer_id: wholesaleCustomer?.id,
           items: cart,
           cash: cashApplied,
           qr: qrCents,
@@ -257,6 +264,7 @@ export function usePaymentFlow({
     try {
       const result = await api({
         action: "sale",
+        wholesale_customer_id: wholesaleCustomer?.id,
         id: saleId,
         items: cart,
         cash: cashApplied,

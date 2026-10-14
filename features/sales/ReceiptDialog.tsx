@@ -31,6 +31,9 @@ function Ticket({ sale }: { sale: Sale }) {
           })}
         </p>
         <p>Caja: {sale.cashier}</p>
+        {sale.wholesale_customer_name && (
+          <p>Cliente mayorista: {sale.wholesale_customer_name}</p>
+        )}
       </div>
       <div className="ticket-columns">
         <span>DETALLE</span>

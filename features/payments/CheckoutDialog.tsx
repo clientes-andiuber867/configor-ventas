@@ -163,6 +163,11 @@ export default function CheckoutDialog({ s }: { s: AppState }) {
         ) : (
           <>
             <div className="modal-total">{money(s.total)}</div>
+            {s.wholesaleCustomer && (
+              <p className="notice">
+                Cliente mayorista: <b>{s.wholesaleCustomer.name}</b>
+              </p>
+            )}
             <fieldset
               disabled={s.busy || s.qrLoading || s.confirmed}
               style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}

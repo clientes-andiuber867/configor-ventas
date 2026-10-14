@@ -4,6 +4,7 @@ import { spawn } from "node:child_process";
 import { mkdir, readFile, writeFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { createHash, randomBytes, scryptSync } from "node:crypto";
+import { verifyWholesale } from "./wholesale-cases.mjs";
 const port = 3006,
   base = "http://127.0.0.1:" + port;
 const directory = path.resolve("tests/.local-data/" + crypto.randomUUID());
@@ -154,7 +155,7 @@ try {
   // Advance only the isolated fixture's persisted deadline, never real time/data.
   async function expireTestLock() {
     const records = JSON.parse(await readFile(attemptFile, "utf8"));
-    records[adminKey].blockedUntil = Date.now() - 1;
+    records[adminKey].blockedUntil = 0;
     await writeFile(attemptFile, JSON.stringify(records));
   }
   for (const minutes of [5, 15, 30, 60, 120, 240, 480, 960, 1440, 1440]) {
@@ -766,6 +767,14 @@ try {
     ).status,
     403,
   );
+  await verifyWholesale({
+    request,
+    adminCookie,
+    cashierCookie,
+    labelSale,
+    directory,
+    bankPayments,
+  });
   await request("/api/auth", { action: "logout" }, cashierCookie);
   await request("/api/data", null, cashierCookie, 401);
   const disk = JSON.parse(

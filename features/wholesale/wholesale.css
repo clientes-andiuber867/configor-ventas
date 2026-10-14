@@ -1,0 +1,323 @@
+.heading.wholesale-heading {
+  margin-bottom: 24px;
+}
+.heading.wholesale-heading h1 {
+  margin: 0;
+  font-size: 30px;
+  letter-spacing: -0.8px;
+}
+.wholesale-view {
+  display: grid;
+  gap: 20px;
+}
+.wholesale-view [hidden] {
+  display: none !important;
+}
+.wholesale-profile {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 20px 24px;
+}
+.wholesale-back {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border: 1px solid #ece5dd;
+  border-radius: 10px;
+}
+.wholesale-identity {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  flex: 1;
+}
+.wholesale-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 46px;
+  height: 46px;
+  background: #f8eeee;
+  color: #b72330;
+  border: 1px solid #efdcdc;
+  border-radius: 14px;
+  font-size: 17px;
+  font-weight: 600;
+}
+.wholesale-profile h2 {
+  font-size: 22px;
+  line-height: 1.3;
+  letter-spacing: -0.5px;
+  overflow-wrap: anywhere;
+}
+.wholesale-profile .muted {
+  margin-top: 5px;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.wholesale-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid #ece6df;
+  border-radius: 12px;
+  background: #f8f6f3;
+  flex-shrink: 0;
+}
+.wholesale-tabs > button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  color: #80766b;
+  font-size: 13px;
+  white-space: nowrap;
+}
+.wholesale-tabs > button[aria-pressed="true"] {
+  background: #fff;
+  color: #b72330;
+  box-shadow: 0 1px 4px #32200e0b;
+  font-weight: 600;
+}
+.wholesale-directory-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.wholesale-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #fff;
+  border: 1px solid #e5dcd2;
+  border-radius: 12px;
+  padding: 0 14px;
+  width: min(360px, 100%);
+  color: #998d7d;
+}
+.wholesale-search input {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 13px 0;
+  min-width: 0;
+  outline: none;
+  box-shadow: none;
+}
+.wholesale-search:focus-within {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+.wholesale-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+.wholesale-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  min-width: 0;
+  text-align: left;
+  padding: 22px;
+  background: #fff;
+  border: 1px solid #e5dcd2;
+  border-radius: 16px;
+  color: #302a26;
+  transition: border-color 0.15s;
+}
+.wholesale-card:hover {
+  border-color: #c4995a;
+}
+.wholesale-card:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+}
+.wholesale-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+  color: #a49785;
+}
+.wholesale-card h3 {
+  font-size: 18px;
+  letter-spacing: -0.3px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.wholesale-card > p {
+  margin-top: 6px;
+  color: #86796c;
+  font-size: 13px;
+}
+.wholesale-section-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 60px;
+  height: 60px;
+  border-radius: 18px;
+  background: #f6efe4;
+  color: #a77b32;
+}
+.wholesale-empty {
+  text-align: center;
+  padding: 48px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+.wholesale-empty h2 {
+  font-size: 22px;
+  letter-spacing: -0.5px;
+}
+.wholesale-empty p {
+  max-width: 420px;
+  line-height: 1.6;
+}
+.wholesale-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  color: #887966;
+  font-size: 12px;
+}
+.wholesale-pagination > div {
+  display: flex;
+  gap: 10px;
+}
+.wholesale-history-summary {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 12px 0;
+  font-size: 12px;
+  color: #897969;
+}
+.wholesale-history-summary b {
+  margin-left: 10px;
+  color: #382d24;
+  font-size: 16px;
+}
+.wholesale-history .wholesale-pagination {
+  padding-top: 20px;
+}
+.wholesale-form {
+  display: grid;
+  gap: 20px;
+}
+.wholesale-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 8px;
+}
+.wholesale-skeleton {
+  padding: 22px;
+  min-height: 150px;
+}
+.wholesale-skeleton span,
+.wholesale-skeleton div {
+  display: block;
+  background: #f1ece6;
+  border-radius: 10px;
+}
+.wholesale-skeleton span {
+  width: 46px;
+  height: 46px;
+  margin-bottom: 18px;
+}
+.wholesale-skeleton div {
+  width: 75%;
+  height: 14px;
+  margin-top: 10px;
+}
+.wholesale-skeleton div:last-child {
+  width: 45%;
+}
+.wholesale-view .pos-view,
+.wholesale-view .cash-register {
+  font-family: inherit;
+}
+.wholesale-view .cash-register-bar {
+  padding: 14px 20px;
+}
+.wholesale-view .pos-view .cart-empty {
+  min-height: 180px;
+  padding: 24px 16px;
+}
+.wholesale-view .pos-view .checkout-summary h2 {
+  font-size: 18px;
+  margin-bottom: 20px;
+}
+@media (min-width: 1600px) {
+  .wholesale-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+@media (max-width: 1150px) {
+  .wholesale-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .wholesale-profile {
+    flex-wrap: wrap;
+  }
+  .wholesale-tabs {
+    margin-left: auto;
+  }
+}
+@media (max-width: 600px) {
+  .heading.wholesale-heading h1 {
+    font-size: 26px;
+  }
+  .wholesale-grid {
+    grid-template-columns: 1fr;
+  }
+  .wholesale-directory-bar {
+    align-items: stretch;
+    flex-direction: column-reverse;
+  }
+  .wholesale-directory-bar > button {
+    align-self: flex-end;
+  }
+  .wholesale-search {
+    width: 100%;
+  }
+  .wholesale-profile {
+    padding: 16px;
+    gap: 12px;
+  }
+  .wholesale-profile h2 {
+    font-size: 20px;
+  }
+  .wholesale-profile .wholesale-avatar {
+    display: none;
+  }
+  .wholesale-tabs {
+    width: 100%;
+    margin: 4px 0 0;
+  }
+  .wholesale-tabs > button {
+    flex: 1;
+  }
+  .wholesale-pagination {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

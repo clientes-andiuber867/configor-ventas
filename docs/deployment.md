@@ -79,3 +79,12 @@ Para instalaciones nuevas, aplicar `008_cash_register.sql` tras 001–007 antes 
 ### Publicación de caja y optimización (008–010)
 
 Aplicar solo las migraciones pendientes, en orden: 008 agrega caja; 009 exige turno abierto; 010 agrupa consultas de caja y preparación de ventas. En el proyecto conectado ya quedaron aplicadas el 13/10/2026. No repetirlas. Mantener variables de Supabase y banco existentes. No se cambia la raíz, el framework ni la configuración de Vercel. Ver [eficiencia del servidor](server-efficiency.md).
+
+### Publicación de ventas mayoristas (011)
+
+La migración `011_wholesale.sql` quedó aplicada a configor-database el 14/10/2026:
+clientes privados, relación de ventas, índice de historial y asociación del nombre
+dentro de la transacción de venta. No repetirla en este proyecto. Para una
+instalación nueva, aplicarla después de 001–010 y antes de publicar este código.
+No requiere nuevas variables ni cambios en Vercel; conservar Node 22.x, `npm ci`,
+`npm run build` y las credenciales existentes de Supabase y del banco.

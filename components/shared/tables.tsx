@@ -109,6 +109,11 @@ export function SaleTable({
           <TableRow key={s.id}>
             <TableCell>
               <b>#{s.reference || s.id.slice(0, 8).toUpperCase()}</b>
+              {s.wholesale_customer_name && (
+                <small className="sub">
+                  Mayorista · {s.wholesale_customer_name}
+                </small>
+              )}
               <small className="sub">
                 {new Date(s.created).toLocaleString("es-BO", {
                   timeZone: "America/La_Paz",

@@ -15,6 +15,8 @@ export type Line = {
   source: "label" | "manual";
 };
 export type Sale = {
+  wholesale_customer_id?: string | null;
+  wholesale_customer_name?: string | null;
   cash_session_id?: string | null;
   reference?: string;
   qr_id?: string;

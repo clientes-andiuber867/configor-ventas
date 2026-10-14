@@ -18,7 +18,10 @@ import { exportSalesCsv } from "@/features/sales/export";
 import { toast } from "sonner";
 import type { Data } from "./types";
 import { api } from "./api";
+import type { WholesaleCustomer } from "@/features/wholesale/types";
 export function useApp() {
+  const [wholesaleCustomer, setWholesaleCustomer] =
+    useState<WholesaleCustomer | null>(null);
   const [cashOpen, setCashOpen] = useState(false);
   const [page, setPage] = useState("Resumen"),
     [data, setData] = useState<Data | null>(null),
@@ -27,7 +30,8 @@ export function useApp() {
     [from, setFrom] = useState(today()),
     [to, setTo] = useState(today()),
     [query, setQuery] = useState(""),
-    [salesMethod, setSalesMethod] = useState("all");
+    [salesMethod, setSalesMethod] = useState("all"),
+    [salesType, setSalesType] = useState("all");
   const [cart, setCart] = useState<Line[]>([]),
     [scan, setScan] = useState(""),
     [lastScan, setLastScan] = useState(""),
@@ -70,6 +74,11 @@ export function useApp() {
     resetCancelledPayment,
     checkout,
   } = usePaymentFlow({
+    wholesaleCustomer,
+    restoreWholesaleCustomer: (customer) => {
+      setWholesaleCustomer(customer);
+      setPage("Ventas mayoristas");
+    },
     data,
     setData,
     cart,
@@ -81,6 +90,7 @@ export function useApp() {
   });
   const scanRef = useRef<HTMLInputElement>(null);
   const scanBuffer = useRef("");
+  const navigationRef = useRef<(next: string) => void>(() => {});
   const load = useCallback(async () => {
     try {
       const d = await api(undefined, "?from=" + from + "&to=" + to);
@@ -102,7 +112,10 @@ export function useApp() {
           initialized.current = true;
           setRecipient(d.payments.recipient);
           setRule(d.rule);
-          if (d.user.role === "cashier") setPage("Punto de venta");
+          if (d.user.role === "cashier")
+            setPage((current) =>
+              current === "Resumen" ? "Punto de venta" : current,
+            );
         }
       });
     } else {
@@ -119,7 +132,12 @@ export function useApp() {
     }
   }, [load, from, to]);
   useEffect(() => {
-    if (cashOpen && page === "Punto de venta" && !manual && !payOpen)
+    if (
+      cashOpen &&
+      (page === "Punto de venta" || page === "Ventas mayoristas") &&
+      !manual &&
+      !payOpen
+    )
       scanRef.current?.focus();
   }, [page, manual, payOpen, cashOpen]);
   useEffect(() => {
@@ -151,7 +169,7 @@ export function useApp() {
           execute: (input: any) => {
             if (!input || Object.keys(input).length)
               throw Error("No parameters accepted");
-            setPage("Punto de venta");
+            navigationRef.current("Punto de venta");
             return { view: "Punto de venta", saleRegistered: false };
           },
         },
@@ -208,6 +226,10 @@ export function useApp() {
         ]);
         toast.success(d.product.name + " añadido");
       } else {
+        if (wholesaleCustomer)
+          throw Error(
+            "Escanea la etiqueta completa de la balanza con su importe. Las ventas mayoristas no modifican precios.",
+          );
         setManual({ ...d, barcode: raw.trim() });
         setWeight(d.grams ? String(d.grams / 1000) : "");
         setAmount("");
@@ -324,21 +346,52 @@ export function useApp() {
     () =>
       filtered.filter(
         (s) =>
-          salesMethod === "all" ||
-          (salesMethod === "mixed"
-            ? s.cash > 0 && s.qr > 0
-            : salesMethod === "qr"
-              ? s.qr > 0 && s.cash === 0
-              : s.cash > 0 && s.qr === 0),
+          (salesType === "all" ||
+            (salesType === "wholesale"
+              ? !!s.wholesale_customer_id
+              : !s.wholesale_customer_id)) &&
+          (salesMethod === "all" ||
+            (salesMethod === "mixed"
+              ? s.cash > 0 && s.qr > 0
+              : salesMethod === "qr"
+                ? s.qr > 0 && s.cash === 0
+                : s.cash > 0 && s.qr === 0)),
       ),
-    [filtered, salesMethod],
+    [filtered, salesMethod, salesType],
   );
   const exportSales = () => exportSalesCsv(visibleSales);
+  function selectWholesaleCustomer(customer: WholesaleCustomer | null) {
+    if (
+      customer?.id !== wholesaleCustomer?.id &&
+      (cart.length || qrLocked || payOpen || busy || manual)
+    ) {
+      toast.error(
+        "Finaliza la venta pendiente o vacía el carrito antes de cambiar de cliente.",
+      );
+      return false;
+    }
+    setWholesaleCustomer(customer);
+    setScan("");
+    scanBuffer.current = "";
+    return true;
+  }
+  function navigate(next: string) {
+    if (
+      next === "Punto de venta" &&
+      wholesaleCustomer &&
+      !selectWholesaleCustomer(null)
+    )
+      return;
+    setPage(next);
+  }
+  navigationRef.current = navigate;
   return {
+    wholesaleCustomer,
+    selectWholesaleCustomer,
     cashOpen,
     setCashOpen,
     page,
-    setPage,
+    setPage: navigate,
     data,
     error,
     busy,
@@ -419,6 +472,8 @@ export function useApp() {
     visibleSales,
     salesMethod,
     setSalesMethod,
+    salesType,
+    setSalesType,
     completed,
     revenue,
     cashTotal,
