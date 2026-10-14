@@ -18,7 +18,7 @@ export function useSummary(filtered: Sale[]) {
       qrTotal += sale.qr;
       for (const item of sale.items) {
         grams += item.grams || 0;
-        if (item.grams === null) unknownWeights++;
+        if (item.grams === null && item.source !== "unit") unknownWeights++;
         const row = rank.get(item.code) || {
           name: item.name,
           total: 0,

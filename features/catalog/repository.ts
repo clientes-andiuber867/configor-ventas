@@ -3,6 +3,7 @@ import { cloudEnabled, rest } from "@/lib/supabase/client";
 import { readStore, updateStore } from "@/lib/local-store";
 import { write } from "@/lib/supabase/queries";
 import type { Product } from "@/lib/domain";
+import { HttpError } from "@/lib/http/errors";
 export async function listProducts(): Promise<Product[]> {
   if (!cloudEnabled()) return (await readStore()).products;
   const products: Product[] = [];
@@ -19,11 +20,25 @@ export async function listProducts(): Promise<Product[]> {
 export async function importProducts(products: Product[]) {
   if (!cloudEnabled())
     return updateStore((s) => {
+      if (
+        products.some((p) =>
+          s.products.some((old) => old.code === p.code && old.mode !== p.mode),
+        )
+      )
+        throw new HttpError(
+          409,
+          "El código ya pertenece a otro tipo de producto. Usa un código diferente.",
+        );
       for (const p of products) {
         const i = s.products.findIndex((x) => x.code === p.code);
         if (i < 0) s.products.push(p);
         else s.products[i] = p;
       }
     });
-  await rest("configor_products", "", write(products));
+  const result = await rest<{ error?: string }>(
+    "rpc/configor_save_products",
+    "",
+    write({ p_products: products }),
+  );
+  if (result?.error) throw new HttpError(409, result.error);
 }

@@ -5,6 +5,7 @@ import { mkdir, readFile, writeFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { createHash, randomBytes, scryptSync } from "node:crypto";
 import { verifyWholesale } from "./wholesale-cases.mjs";
+import { verifyUnitProducts } from "./unit-product-cases.mjs";
 const port = 3006,
   base = "http://127.0.0.1:" + port;
 const directory = path.resolve("tests/.local-data/" + crypto.randomUUID());
@@ -775,6 +776,7 @@ try {
     directory,
     bankPayments,
   });
+  await verifyUnitProducts({ request, adminCookie, cashierCookie, labelSale });
   await request("/api/auth", { action: "logout" }, cashierCookie);
   await request("/api/data", null, cashierCookie, 401);
   const disk = JSON.parse(

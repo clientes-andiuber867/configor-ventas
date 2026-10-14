@@ -5,7 +5,11 @@ import {
   digest,
   HttpError,
 } from "@/features/auth/server";
-import { configureRule, importCatalog } from "@/features/catalog/service";
+import {
+  configureRule,
+  importCatalog,
+  saveUnitProduct,
+} from "@/features/catalog/service";
 import { updateRecipient } from "@/features/payments/service";
 import { cancelSale, registerSale } from "@/features/sales/service";
 import { updateMember } from "@/features/users/service";
@@ -94,6 +98,8 @@ export async function POST(req: Request) {
     if (user.role !== "admin")
       throw new HttpError(403, "Se requiere un administrador.");
     switch (body.action) {
+      case "unit-product":
+        return Response.json(await saveUnitProduct(body.product));
       case "import":
         return Response.json(await importCatalog(body.products));
       case "rule":

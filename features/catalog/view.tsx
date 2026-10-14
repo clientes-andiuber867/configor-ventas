@@ -5,6 +5,8 @@ import type { AppState } from "@/features/workspace/use-workspace";
 import { download } from "@/lib/download";
 import { decodeBarcode, money, referenceProducts } from "@/lib/domain";
 import { ChevronRight, Database, Download, Search, Upload } from "lucide-react";
+import { UnitProducts } from "./unit-products";
+import "./catalog.css";
 export function DatabaseView({ s }: { s: AppState }) {
   if (!s.data) return null;
   return (
@@ -110,8 +112,10 @@ export function DatabaseView({ s }: { s: AppState }) {
       <section className="panel">
         <div className="panel-title">
           <h2>
-            Productos registrados{" "}
-            <span className="badge">{s.data.products.length}</span>
+            Productos de la balanza{" "}
+            <span className="badge">
+              {s.data.products.filter((p) => p.mode !== "unit").length}
+            </span>
           </h2>
           <div className="search">
             <Search size={17} />
@@ -123,9 +127,15 @@ export function DatabaseView({ s }: { s: AppState }) {
             />
           </div>
         </div>
-        <ProductTable products={s.visibleProducts} />
+        <ProductTable
+          products={s.visibleProducts.filter((p) => p.mode !== "unit")}
+        />
       </section>
-      <section className="panel rule-panel">
+      <UnitProducts s={s} />
+      <details className="panel rule-panel">
+        <summary className="rule-summary">
+          Configuración de la balanza <span className="badge">Avanzado</span>
+        </summary>
         <div className="panel-title">
           <h2>Interpretación del código de barras</h2>
           <label className="switch-label">
@@ -137,9 +147,8 @@ export function DatabaseView({ s }: { s: AppState }) {
           </label>
         </div>
         <p className="body-copy">
-          Los códigos de producto y EAN-8 se reconocen automáticamente. Activa
-          un formato extendido solo cuando coincida con una etiqueta real de la
-          balanza.
+          Este formato interpreta producto, peso e importe de las etiquetas. Si
+          la lectura actual funciona, conserva estos valores.
         </p>
         <div className="form-grid">
           <label>
@@ -201,7 +210,7 @@ export function DatabaseView({ s }: { s: AppState }) {
               onChange={(v) => s.setRule({ ...s.rule, checksum: v as any })}
               label="Dígito de control"
               options={[
-                ["none", "Sin validar C (pendiente)"],
+                ["none", "Sin validar dígito de control"],
                 ["ean", "Módulo 10 / EAN"],
               ]}
             />
@@ -248,7 +257,7 @@ export function DatabaseView({ s }: { s: AppState }) {
           </button>
         </div>
         {s.testResult && <p className="notice">{s.testResult}</p>}
-      </section>
+      </details>
     </>
   );
 }

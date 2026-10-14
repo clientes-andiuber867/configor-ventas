@@ -88,3 +88,11 @@ dentro de la transacción de venta. No repetirla en este proyecto. Para una
 instalación nueva, aplicarla después de 001–010 y antes de publicar este código.
 No requiere nuevas variables ni cambios en Vercel; conservar Node 22.x, `npm ci`,
 `npm run build` y las credenciales existentes de Supabase y del banco.
+
+### Productos por unidad (012)
+
+`012_unit_products.sql` está aplicada al proyecto conectado (14/10/2026). Permite
+productos `unit`, conserva los productos `weight` y protege sus códigos contra
+cambios de tipo durante importaciones. Añade `configor_save_products`, usada por
+el servidor para guardar catálogos. No requiere variables nuevas. En instalaciones
+nuevas aplicar después de 011 y antes de desplegar este código.

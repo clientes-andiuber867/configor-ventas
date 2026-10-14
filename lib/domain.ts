@@ -12,7 +12,7 @@ export type Line = {
   barcode: string;
   grams: number | null;
   amount: number;
-  source: "label" | "manual";
+  source: "label" | "manual" | "unit";
 };
 export type Sale = {
   wholesale_customer_id?: string | null;
@@ -87,10 +87,16 @@ export function decodeBarcode(
   if (!/^\d{4,32}$/.test(code))
     throw Error("El código debe tener entre 4 y 32 dígitos.");
   const exact = products.find((p) => p.code === code);
-  if (exact) return { product: exact, amount: null, grams: null };
+  if (exact)
+    return {
+      product: exact,
+      amount: exact.mode === "unit" ? exact.price : null,
+      grams: null,
+    };
   if (code.length === 8 && eanValid(code)) {
     const p = products.find((p) => p.code === code.slice(0, -1));
-    if (p) return { product: p, amount: null, grams: null };
+    if (p && p.mode !== "unit")
+      return { product: p, amount: null, grams: null };
   }
   if (!rule.enabled)
     throw Error(
@@ -107,6 +113,10 @@ export function decodeBarcode(
   const id = part("W");
   const p = products.find((p) => p.code === id.padStart(rule.codePad, "0"));
   if (!p) throw Error("Producto " + id + " no encontrado en la base de datos.");
+  if (p.mode === "unit")
+    throw Error(
+      "Este producto se vende por unidad. Escanea su código completo.",
+    );
   const amount = part("E")
     ? Math.round((Number(part("E")) * 100) / 10 ** rule.amountDecimals)
     : null;

@@ -39,3 +39,10 @@ export async function configureRule(input: unknown) {
   await saveSetting("rule", rule);
   return { ok: true };
 }
+export async function saveUnitProduct(input: unknown) {
+  const product = productSchema
+    .extend({ mode: z.literal("unit"), plu: z.literal("").default("") })
+    .parse(input);
+  await importProducts([product]);
+  return { product };
+}

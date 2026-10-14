@@ -19,7 +19,7 @@ export const saleSchema = z.object({
         barcode: z.string().max(32),
         grams: z.number().int().positive().max(1000000).nullable(),
         amount: z.number().int().positive().max(100000000),
-        source: z.enum(["label", "manual"]),
+        source: z.enum(["label", "manual", "unit"]),
       }),
     )
     .min(1)
@@ -31,7 +31,7 @@ export const saleSchema = z.object({
 export async function prepareSale(input: unknown) {
   const d = saleSchema.parse(input);
   if (d.wholesale_customer_id) {
-    if (d.items.some((line) => line.source !== "label"))
+    if (d.items.some((line) => line.source === "manual"))
       throw new HttpError(
         400,
         "Escanea una etiqueta con el importe de la balanza para la venta mayorista.",
@@ -43,6 +43,19 @@ export async function prepareSale(input: unknown) {
   const items: Line[] = d.items.map((line, i) => {
     const p = products.find((p) => p.code === line.code);
     if (!p) throw new HttpError(400, "Un producto ya no existe.");
+    if (p.mode === "unit" || line.source === "unit") {
+      if (
+        p.mode !== "unit" ||
+        line.source !== "unit" ||
+        line.barcode !== p.code ||
+        line.grams !== null ||
+        line.amount !== p.price
+      )
+        throw new HttpError(
+          400,
+          "El precio o código del producto por unidad cambió. Vuelve a escanearlo.",
+        );
+    }
     if (line.source === "label") {
       const decoded = decodeBarcode(line.barcode, products, settings.rule);
       if (

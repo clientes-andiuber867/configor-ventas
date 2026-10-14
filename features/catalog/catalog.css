@@ -1,0 +1,32 @@
+.unit-products {
+  border-top: 2px solid #b79b6a;
+}
+.unit-products h2 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.unit-products .panel-title .hint {
+  margin: 8px 0 0;
+}
+.unit-product-form {
+  display: grid;
+  gap: 18px;
+}
+.rule-summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 16px;
+}
+.rule-summary .badge {
+  margin-left: 12px;
+  font-weight: 400;
+}
+.rule-panel[open] .rule-summary {
+  margin-bottom: 28px;
+}
+.rule-summary:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 6px;
+}

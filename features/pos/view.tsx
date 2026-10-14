@@ -101,12 +101,16 @@ export function POS({ s }: { s: AppState }) {
                           {l.code} ·{" "}
                           {l.source === "manual"
                             ? "Importe manual"
-                            : "Etiqueta"}
+                            : l.source === "unit"
+                              ? "Por unidad"
+                              : "Etiqueta"}
                         </small>
                       </TableCell>
                       <TableCell>
                         {l.grams === null
-                          ? "Sin peso"
+                          ? l.source === "unit"
+                            ? "1 ud."
+                            : "Sin peso"
                           : (l.grams / 1000).toFixed(3) + " kg"}
                       </TableCell>
                       <TableCell>

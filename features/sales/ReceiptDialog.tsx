@@ -46,7 +46,9 @@ function Ticket({ sale }: { sale: Sale }) {
               <b>{l.name}</b>
               <small>
                 {l.grams === null
-                  ? "1 unidad · peso no registrado"
+                  ? l.source === "unit"
+                    ? "1 unidad"
+                    : "1 unidad · peso no registrado"
                   : (l.grams / 1000).toFixed(3) + " kg"}
               </small>
             </div>

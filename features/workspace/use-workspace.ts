@@ -221,7 +221,7 @@ export function useApp() {
             barcode: raw.trim(),
             grams: d.grams,
             amount: d.amount!,
-            source: "label",
+            source: d.product.mode === "unit" ? "unit" : "label",
           },
         ]);
         toast.success(d.product.name + " añadido");
